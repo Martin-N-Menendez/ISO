@@ -42,25 +42,27 @@ static void initHardware(void)
 	SystemCoreClockUpdate();
 	SysTick_Config(SystemCoreClock / 1000);
 }
-/*
-static void pausems(uint32_t t)
+
+static void delayms(uint32_t t_seconds)
 {
-	pausems_count = t;
-	while (pausems_count != 0){
-		__WFI();
-	};
+	uint32_t t_millis = 1000 * t_seconds;
+	uint32_t i;
+
+	for ( i = 0; i < t_millis; i++);
+
 }
-*/
-/*==================[external functions definition]==========================*/
+
+/*==================[external functions definitibon]==========================*/
 
 void * task1(void* arg)
 {
-	uint32_t i;
+
 	while(1){
 		//__WFI();
 		//os_delay(100);
-		for (i = 0; i < 200000; i++);
-		Board_LED_Toggle(LED+2);
+		delayms(200);
+		//for (i = 0; i < 200000; i++);
+		Board_LED_Toggle(LED+1);
 
 	}
 	return NULL;
@@ -68,11 +70,12 @@ void * task1(void* arg)
 
 void * task2(void* arg)
 {
-	uint32_t j;
+
 	while(1){
 		//__WFI();
 		//os_delay(100);
-		for (j = 0; j < 300000; j++);
+		delayms(300);
+		//for (j = 0; j < 300000; j++);
 		Board_LED_Toggle(LED+3);
 	}
 	return NULL;
@@ -90,6 +93,7 @@ void task_return_hook(void* ret_val)
 	}
 }
 
+/*
 uint32_t get_next_context_2(uint32_t current_action)
 {
 	switch (current_task){
@@ -112,7 +116,7 @@ uint32_t get_next_context_2(uint32_t current_action)
 
 	return next_sp;
 }
-
+*/
 
 
 
