@@ -90,6 +90,32 @@ void task_return_hook(void* ret_val)
 	}
 }
 
+uint32_t get_next_context_2(uint32_t current_state)
+{
+	switch (current_task){
+		case WAITING:
+			// si release > ready
+			break;
+		case READY:
+			// si start > running
+			break;
+		case SUSPENDED:
+			// si activate > ready
+			break;
+		case RUNNING:
+			// si wait > waiting
+			// si preempt > ready
+			// si terminate > suspended
+			break;
+		default:
+			break;
+
+	return next_sp;
+}
+
+
+
+
 uint32_t get_next_context(uint32_t current_sp)
 {
 	uint32_t next_sp;
