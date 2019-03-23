@@ -90,7 +90,7 @@ void task_return_hook(void* ret_val)
 	}
 }
 
-uint32_t get_next_context_2(uint32_t current_state)
+uint32_t get_next_context_2(uint32_t current_action)
 {
 	switch (current_task){
 		case WAITING:
