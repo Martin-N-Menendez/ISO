@@ -41,7 +41,17 @@ static void initHardware(void)
 	Board_Init();
 	SystemCoreClockUpdate();
 	SysTick_Config(SystemCoreClock / 1000);
+	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) -1);
 }
+
+void schedule(void)
+{
+	__ISB();
+	__DSB();
+
+	SCB -> ICSR |= SCB_ICSR_PENDSVSET_Msk;
+}
+
 /*
 static void pausems(uint32_t t)
 {
@@ -77,12 +87,12 @@ void * task2(void* arg)
 	}
 	return NULL;
 }
-/*
+
 void SysTick_Handler(void)
 {
-	if(pausems_count > 0) pausems_count --;
+	schedule();
 }
-*/
+
 void task_return_hook(void* ret_val)
 {
 	while(1){
@@ -147,7 +157,6 @@ int main(void){
 	init_stack(stack2,STACK_SIZE,&sp2,task2,(void *)0x55667788);
 
 	initHardware(); /* Inicializar la placa */
-
 
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
 		Board_LED_Toggle(LED);

@@ -1,12 +1,14 @@
 	.syntax unified
 	.text
-	.global SysTick_Handler
+	//.global SysTick_Handler
+	.global PendSV_Handler
 
 	.extern get_next_context
 
 	.thumb_func
 
-SysTick_Handler:
+//SysTick_Handler:
+PendSV_Handler:
 	push {r4-r11,lr}
 
 	mrs r0,msp 				/* r0 = msp*/

@@ -33,7 +33,7 @@
 
 #PROJECT ?= ISO/Ej_0
 #PROJECT ?= ISO/Ej_1
-PROJECT ?= ISO/Ej_1
+PROJECT ?= ISO/Ej_0
 
 TARGET ?= lpc4337_m4
 BOARD ?= edu_ciaa_nxp
