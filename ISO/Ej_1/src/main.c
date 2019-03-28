@@ -42,6 +42,7 @@ static void initHardware(void)
 	Board_Init();
 	SystemCoreClockUpdate();
 	SysTick_Config(SystemCoreClock / 1000);
+	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) -1);
 }
 
 /*==================[external functions definitibon]==========================*/

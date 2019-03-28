@@ -1,13 +1,13 @@
 	.syntax unified
 	.text
-	.global SysTick_Handler
+	.global PendSV_Handler
 
 	.extern get_next_context
 	.extern add_tick_count
 
 	.thumb_func
 
-SysTick_Handler:
+PendSV_Handler:
 	push {r4-r11,lr}
 	bl add_tick_count
 	mrs r0,msp 				/* r0 = msp*/

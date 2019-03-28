@@ -38,6 +38,19 @@ void os_init(void){
 	task_create(stack_idle,STACK_SIZE,idle, (void*)0);
 }
 
+void schedule(void)
+{
+	__ISB();
+	__DSB();
+
+	SCB -> ICSR |= SCB_ICSR_PENDSVSET_Msk;
+}
+
+void SysTick_Handler(void)
+{
+	schedule();
+}
+
 void task_create(uint32_t stack[],
 				uint32_t stack_size_bytes,
 				task_type entry_point,
