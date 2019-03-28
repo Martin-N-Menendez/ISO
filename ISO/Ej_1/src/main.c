@@ -2,15 +2,16 @@
 #include "board.h"
 #include <stdlib.h>
 #include <strings.h>
+#include "os.h"
 /*==================[macros and definitions]=================================*/
 
 
 
-#define STACK_SIZE 1024
+//#define STACK_SIZE 1024
 #define DELAY_MS 1000
 #define LED 2	//#define LED LEDR
 
-typedef void *(*task_type)(void *);
+//typedef void *(*task_type)(void *);
 
 /*==================[internal data declaration]==============================*/
 
@@ -43,27 +44,14 @@ static void initHardware(void)
 	SysTick_Config(SystemCoreClock / 1000);
 }
 
-static void delayms(uint32_t t_seconds)
-{
-	uint32_t t_millis = 1000 * t_seconds;
-	uint32_t i;
-
-	for ( i = 0; i < t_millis; i++);
-
-}
-
 /*==================[external functions definitibon]==========================*/
 
 void * task1(void* arg)
 {
 
 	while(1){
-		//__WFI();
-		//os_delay(100);
-		delayms(200);
-		//for (i = 0; i < 200000; i++);
 		Board_LED_Toggle(LED+1);
-
+		task_delay(200);
 	}
 	return NULL;
 }
@@ -72,26 +60,12 @@ void * task2(void* arg)
 {
 
 	while(1){
-		//__WFI();
-		//os_delay(100);
-		delayms(300);
-		//for (j = 0; j < 300000; j++);
 		Board_LED_Toggle(LED+3);
+		task_delay(300);
 	}
 	return NULL;
 }
-/*
-void SysTick_Handler(void)
-{
-	if(pausems_count > 0) pausems_count --;
-}
-*/
-void task_return_hook(void* ret_val)
-{
-	while(1){
-		__WFI();
-	}
-}
+
 
 /*
 uint32_t get_next_context_2(uint32_t current_action)
@@ -118,8 +92,7 @@ uint32_t get_next_context_2(uint32_t current_action)
 }
 */
 
-
-
+/*
 uint32_t get_next_context(uint32_t current_sp)
 {
 	uint32_t next_sp;
@@ -149,32 +122,17 @@ uint32_t get_next_context(uint32_t current_sp)
 	}
 	return next_sp;
 }
-
-void init_stack(uint32_t stack[],
-				uint32_t stack_size_bytes,
-				uint32_t * sp,
-				task_type entry_point,
-				void * arg)
-{
-	bzero(stack,stack_size_bytes);
-
-	stack[stack_size_bytes/4-1] = 1 << 24;								/* xPSR.T = 1*/
-	stack[stack_size_bytes/4-2] = (uint32_t)entry_point;					/* xPC */
-	stack[stack_size_bytes/4-3] = (uint32_t)task_return_hook;				/* xLR */
-	stack[stack_size_bytes/4-8] = (uint32_t)arg;							/* R0 */
-	stack[stack_size_bytes/4-9] = 0xFFFFFFF9;								/* LR IRQ */
-
-	/* Considero los otros 8 registros */
-	*sp = (uint32_t)&(stack[stack_size_bytes/4-17]);
-}
+*/
 
 
 /* FUNCION PRINCIPAL, PUNTO DE ENTRADA AL PROGRAMA LUEGO DE RESET. */
 int main(void){
 
 	/* ------------- INICIALIZACIONES ------------- */
-	init_stack(stack1,STACK_SIZE,&sp1,task1,(void *)0x11223344);
-	init_stack(stack2,STACK_SIZE,&sp2,task2,(void *)0x55667788);
+
+	os_init();
+	task_create(stack1,STACK_SIZE,task1,(void *)0x11223344);
+	task_create(stack2,STACK_SIZE,task2,(void *)0x55667788);
 
 	initHardware(); /* Inicializar la placa */
 

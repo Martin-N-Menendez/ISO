@@ -3,12 +3,13 @@
 	.global SysTick_Handler
 
 	.extern get_next_context
+	.extern add_tick_count
 
 	.thumb_func
 
 SysTick_Handler:
 	push {r4-r11,lr}
-
+	bl add_tick_count
 	mrs r0,msp 				/* r0 = msp*/
 	bl get_next_context 	/* get_next_context(msp) */
 	msr msp,r0				/* msp = r0 (valor devuelto por get_next_context) */
