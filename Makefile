@@ -31,9 +31,7 @@
 
 -include project.mk
 
-#PROJECT ?= ISO/Ej_0
-#PROJECT ?= ISO/Ej_1
-PROJECT ?= ISO/Ej_1
+PROJECT ?= ISO/SO
 
 TARGET ?= lpc4337_m4
 BOARD ?= edu_ciaa_nxp

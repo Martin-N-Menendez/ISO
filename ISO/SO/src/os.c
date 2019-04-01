@@ -8,14 +8,6 @@
 uint32_t tick_count = 0;
 /*==================[internal functions declaration]=========================*/
 
-void init_stack(uint32_t stack[],
-				uint32_t stack_size_bytes,
-				uint32_t * sp,
-				task_type entry_point,
-				void * arg);
-
-void* idle(void* args);
-
 /*==================[internal data definition]===============================*/
 
 task_struct task_list[N_TASK];
@@ -156,30 +148,30 @@ void task_delay(uint32_t delay)
 {
 	task_list[current_task].state = WAITING;				/* Asignar estado WAITING */
 	task_list[current_task].ticks = delay;					/* Guardar cantidad de ticks a esperar */
-	while (task_list[current_task].ticks > 0){				/* Esperar interrupciones mientras tanto */
-		__WFI();
+	while (task_list[current_task].ticks > 0){
+		__WFI();											/* Esperar interrupciones mientras tanto */
 	}
 }
 
-void task_return_hook(void* ret_val)
+void task_return_hook(void* args)
 {
 	while(1){
-		__WFI();
+		__WFI();											/* Esperar interrupciones mientras tanto */
 	}
 }
 
 void* idle(void* args){
 	while(1){
-		__WFI();
+		__WFI();											/* Esperar interrupciones mientras tanto */
 	}
 }
 
 void add_tick_count(void){
-	tick_count++;
+	tick_count++;											/* Incrementar cantidad de ticks */
 }
 
 uint32_t get_tick_count(void){
-	return tick_count;
+	return tick_count;										/* Devolver cantidad de ticks */
 }
 
 
