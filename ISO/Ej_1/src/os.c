@@ -5,11 +5,14 @@
 /*==================[macros and definitions]=================================*/
 
 /*==================[internal data declaration]==============================*/
-
 uint32_t tick_count = 0;
 /*==================[internal functions declaration]=========================*/
 
-void init_stack(uint32_t stack[],uint32_t stack_size_bytes,uint32_t * sp,task_type entry_point,void * arg);
+void init_stack(uint32_t stack[],
+				uint32_t stack_size_bytes,
+				uint32_t * sp,
+				task_type entry_point,
+				void * arg);
 
 void* idle(void* args);
 
@@ -25,24 +28,25 @@ uint32_t stack_idle[STACK_SIZE/4];
 
 /*==================[internal functions definition]==========================*/
 
-void os_init(void){
+void os_init(void){	/* Inicializar las tareas y crear tarea idle */
 	uint32_t i;
 
-	for( i=0 ; i < N_TASK ; i++){
+	for( i=0 ; i < N_TASK ; i++){	/* Inicializar tareas*/
 		task_list[i].id = 0;
 		task_list[i].state = 0;
 		task_list[i].stack_pointer = 0;
 	}
 	task_list_idx = 1;
 	current_task = 0;
-	task_create(stack_idle,STACK_SIZE,idle, (void*)0);
+	task_create(stack_idle,STACK_SIZE,idle, (void*)0);	/* Crear tarea Idle */
 }
 
-void schedule(void)
-{
+void schedule(void){	/* Programador */
+	/* Instruction Synchronization Barrier: Aseguramos que se ejecuten todas las instrucciones en el pipleine*/
 	__ISB();
+	/* Data Synchronization Barrier: Aseguramos que se completen todos los accesos a memoria */
 	__DSB();
-
+	/* Activo PendSV pra llevar el cambio de contexto */
 	SCB -> ICSR |= SCB_ICSR_PENDSVSET_Msk;
 }
 
@@ -56,8 +60,9 @@ void task_create(uint32_t stack[],
 				task_type entry_point,
 				void * args){
 
-	task_list[task_list_idx].id = task_list_idx;
-	task_list[task_list_idx].state = RUNNING;
+	task_list[task_list_idx].id = task_list_idx;	/* Asignar indice de tarea */
+	task_list[task_list_idx].state = RUNNING;		/* Asignar estado de tarea */
+	/*Inicializar stack de tarea*/
 	init_stack(stack,stack_size_bytes,&task_list[task_list_idx].stack_pointer,entry_point,args);
 
 	task_list_idx++;
@@ -69,7 +74,7 @@ void init_stack(uint32_t stack[],
 				task_type entry_point,
 				void * arg)
 {
-	bzero(stack,stack_size_bytes);
+	bzero(stack,stack_size_bytes);	 										/* Vaciar stack */
 
 	stack[stack_size_bytes/4-1] = 1 << 24;									/* xPSR.T = 1*/
 	stack[stack_size_bytes/4-2] = (uint32_t)entry_point;					/* xPC */
@@ -82,22 +87,21 @@ void init_stack(uint32_t stack[],
 	*sp = (uint32_t)stack_dir;
 }
 
-uint32_t get_next_context(uint32_t current_sp)
-{
+uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de tareas */
 	uint32_t next_sp;
 
-	/* If task == 0*/
 
-	if ( current_task == 0){
+
+	if ( current_task == 0 ){ 	/* Si la tarea actual es idle */
 		next_sp = task_list[1].stack_pointer;
 		current_task = 1;
 		return next_sp;
 	}
 
-	/* Save stack of current stack */
+	/* Guardar stack de tarea actual */
 	task_list[current_task].stack_pointer = current_sp;
 
-	/* Get next stack pointer and task */
+	/* Obtener proximo SP y tarea */
 	uint32_t next_task,idx;
 	bool find_next_task = FALSE;
 
@@ -105,54 +109,54 @@ uint32_t get_next_context(uint32_t current_sp)
 		uint32_t task_idx = ((current_task + idx) % (task_list_idx -1)) +1;
 		task_state state = task_list[task_idx].state;
 		switch(state){
-		case READY:
+		case READY:											/* Estado READY */
 			if( !find_next_task ){
-				task_list[task_idx].state = RUNNING;
-				find_next_task = TRUE;
-				next_task = task_idx;
+				task_list[task_idx].state = RUNNING;		/* Cambiar estado */
+				find_next_task = TRUE;						/* Buscar proximo */
+				next_task = task_idx;						/* Proxima tarea */
 			}
 			break;
-		case RUNNING:
-			task_list[task_idx].state = RUNNING;
+		case RUNNING:										/* Estado RUNNING */
+			task_list[task_idx].state = RUNNING;			/* Cambiar estado */
 			if( !find_next_task ){
-				find_next_task = TRUE;
-				next_task = task_idx;
+				find_next_task = TRUE;						/* Buscar proximo */
+				next_task = task_idx;						/* Proxima tarea */
 			}
 			break;
-		case WAITING:
-			task_list[task_idx].ticks --;
-			if( task_list[task_idx].ticks == 0 ){
+		case WAITING:										/* Estado WAITING */
+			task_list[task_idx].ticks --;					/* Decremento los ticks */
+			if( task_list[task_idx].ticks == 0 ){			/* Se espero suficiente? */
 				if( !find_next_task ){
-					task_list[task_idx].state = RUNNING;
-					find_next_task = TRUE;
-					next_task = task_idx;
+					task_list[task_idx].state = RUNNING;	/* Cambiar estado */
+					find_next_task = TRUE;					/* Buscar proximo */
+					next_task = task_idx;					/* Proxima tarea */
 				} else {
-					task_list[task_idx].state = READY;
+					task_list[task_idx].state = READY;		/* Cambiar estado */
 				}
 			}
 			break;
-		case SUSPENDED:
+		case SUSPENDED:										/* Estado SUSPENDED */
 			/* FALTA */
 			break;
 		default: break;
 		}
 	}
 
-	if ( !find_next_task ){
-		next_task = 1; // go to idle task
+	if ( !find_next_task ){									/* Si no hay proximas tareas */
+		next_task = 1; 										/* Tarea 1 = Idle */
 	}
 
-	current_task = next_task;
-	next_sp = task_list[next_task].stack_pointer;
+	current_task = next_task;								/* Asignar tarea actual */
+	next_sp = task_list[next_task].stack_pointer;			/* Asignar SP */
 
 	return next_sp;
 }
 
 void task_delay(uint32_t delay)
 {
-	task_list[current_task].state = WAITING;
-	task_list[current_task].ticks = delay;
-	while (task_list[current_task].ticks > 0){
+	task_list[current_task].state = WAITING;				/* Asignar estado WAITING */
+	task_list[current_task].ticks = delay;					/* Guardar cantidad de ticks a esperar */
+	while (task_list[current_task].ticks > 0){				/* Esperar interrupciones mientras tanto */
 		__WFI();
 	}
 }
