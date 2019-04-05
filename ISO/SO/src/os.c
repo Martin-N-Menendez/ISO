@@ -42,8 +42,6 @@ typedef struct{
 	gpioConfigLpc4337_t gpio;
 } pin_config_gpio_lpc_4337_t;
 
-
-
 const pin_config_gpio_lpc_4337_t gpio_pins_config[] = {
 
    { {4, 1}, FUNC0, {2, 1} },   /*   0   CON1_36   T_FIL1           */
@@ -174,8 +172,6 @@ void init_stack(uint32_t stack[],
 uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de tareas */
 	uint32_t next_sp;
 
-
-
 	if ( current_task == 0 ){ 	/* Si la tarea actual es idle */
 		next_sp = task_list[1].stack_pointer;
 		current_task = 1;
@@ -192,6 +188,7 @@ uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de
 	for ( idx = 0 ; idx < (task_list_idx -1) ; idx++ ){
 		uint32_t task_idx = ((current_task + idx) % (task_list_idx -1)) +1;
 		task_state state = task_list[task_idx].state;
+		semaphore_t* sem;
 		switch(state){
 		case READY:											/* Estado READY */
 			if( !find_next_task ){
@@ -208,15 +205,22 @@ uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de
 			}
 			break;
 		case WAITING:										/* Estado WAITING */
-			task_list[task_idx].ticks --;					/* Decremento los ticks */
-			if( task_list[task_idx].ticks == 0 ){			/* Se espero suficiente? */
-				if( !find_next_task ){
-					task_list[task_idx].state = RUNNING;	/* Cambiar estado */
-					find_next_task = TRUE;					/* Buscar proximo */
-					next_task = task_idx;					/* Proxima tarea */
-				} else {
-					task_list[task_idx].state = READY;		/* Cambiar estado */
+			switch(task_list[task_idx].wait_state){
+			case WAIT_TICKS:
+				task_list[task_idx].ticks --;					/* Decremento los ticks */
+				if( task_list[task_idx].ticks == 0 ){			/* Se espero suficiente? */
+					task_list[task_idx].state = READY;			/* Cambiar estado */
+					/* PRIO */
 				}
+				break;
+			case WAIT_SEM:
+				sem = task_list[task_idx].semaphore;
+				if (sem != NULL && sem->taken == FALSE){
+					task_list[task_idx].state = READY;
+					/* PRIO */
+				}
+				break;
+			default: break;
 			}
 			break;
 		case SUSPENDED:										/* Estado SUSPENDED */
@@ -239,6 +243,7 @@ uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de
 void task_delay(uint32_t delay)
 {
 	task_list[current_task].state = WAITING;				/* Asignar estado WAITING */
+	task_list[current_task].wait_state = WAIT_TICKS;
 	task_list[current_task].ticks = delay;					/* Guardar cantidad de ticks a esperar */
 	while (task_list[current_task].ticks > 0){
 		__WFI();											/* Esperar interrupciones mientras tanto */

@@ -2,6 +2,8 @@
 #define OS_H
 
 #include <stdint.h>
+#include <stdlib.h>
+#include "semaphore.h"
 
 #define N_TASK 10
 #define STACK_SIZE 1024
@@ -15,11 +17,17 @@ typedef enum {
 	SUSPENDED
 } task_state;
 
+typedef enum {WAIT_TICKS = 1,
+			  WAIT_SEM
+} task_waiting_state;
+
 typedef struct {
 	uint32_t id;					/* Task ID */
 	task_state state;				/* Task State */
 	uint32_t stack_pointer;			/* Task Stack Pointer */
 	uint32_t ticks;					/* Ticks*/
+	semaphore_t* semaphore;			/* Semaphore */
+	task_waiting_state wait_state; 	/* Tick or Sem?*/
 } task_struct;
 
 

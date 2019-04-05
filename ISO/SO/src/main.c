@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "os.h"
+#include "semaphore.h"
 /*==================[macros and definitions]=================================*/
 
 #define EJ1
@@ -13,6 +14,8 @@ typedef enum {UP,DOWN} button_state;
 //typedef enum {TEC1,TEC2,TEC3,TEC4} button_idx;
 //typedef enum {LEDR,LEDG,LEDB,LED1,LED2,LED3} led_idx;
 typedef enum {OFF,ON} led_state;
+
+semaphore_t xSem;
 
 /*==================[internal data declaration]==============================*/
 
@@ -108,7 +111,7 @@ void* button_task(void* taskParam)
 				state = UP;
 				on_time = get_tick_count() - on_time;
 				led_on_time_tick = on_time;
-				launched = 1; //give
+				semaphore_give(&xSem);
 			}
 		}
 	}
@@ -116,11 +119,7 @@ void* button_task(void* taskParam)
 
 void* led_task(void* taskParam){
 	while(1){
-		while(launched == 0){
-			//__WFI();
-			task_delay(100);
-		}
-		launched = 0;
+		semaphore_take(&xSem);
 		//Board_LED_Set(LED,ON);
 		led_set(LEDR,ON);
 		task_delay(led_on_time_tick);
@@ -145,6 +144,7 @@ int main(void){
 	#endif
 
 	#ifdef EJ1
+	semaphore_create(&xSem);
 	task_create(stack1,STACK_SIZE,button_task,(void *)0x11223344);
 	task_create(stack2,STACK_SIZE,led_task,(void *)0x55667788);
 	#endif
