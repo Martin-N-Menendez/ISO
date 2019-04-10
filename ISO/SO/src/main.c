@@ -150,7 +150,6 @@ int main(void){
 	task_create(stack2,STACK_SIZE,led_task,1,(void *)0x55667788);
 	#endif
 
-
 	initHardware(); /* Inicializar la placa */
 
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
