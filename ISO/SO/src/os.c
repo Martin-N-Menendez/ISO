@@ -120,7 +120,7 @@ void os_init(void){	/* Inicializar las tareas y crear tarea idle */
 	}
 	task_list_idx = 1;
 	current_task = 0;
-	task_create(stack_idle,STACK_SIZE,idle, (void*)0);	/* Crear tarea Idle */
+	task_create(stack_idle,STACK_SIZE,idle,1, (void*)0);	/* Crear tarea Idle */
 }
 
 void schedule(void){	/* Programador */
@@ -137,18 +137,7 @@ void SysTick_Handler(void)
 	schedule();
 }
 
-void task_create(uint32_t stack[],
-				uint32_t stack_size_bytes,
-				task_type entry_point,
-				void * args){
 
-	task_list[task_list_idx].id = task_list_idx;	/* Asignar indice de tarea */
-	task_list[task_list_idx].state = RUNNING;		/* Asignar estado de tarea */
-	/*Inicializar stack de tarea*/
-	init_stack(stack,stack_size_bytes,&task_list[task_list_idx].stack_pointer,entry_point,args);
-
-	task_list_idx++;
-}
 
 void init_stack(uint32_t stack[],
 				uint32_t stack_size_bytes,
@@ -238,23 +227,6 @@ uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de
 	next_sp = task_list[next_task].stack_pointer;			/* Asignar SP */
 
 	return next_sp;
-}
-
-void task_delay(uint32_t delay)
-{
-	task_list[current_task].state = WAITING;				/* Asignar estado WAITING */
-	task_list[current_task].wait_state = WAIT_TICKS;
-	task_list[current_task].ticks = delay;					/* Guardar cantidad de ticks a esperar */
-	while (task_list[current_task].ticks > 0){
-		__WFI();											/* Esperar interrupciones mientras tanto */
-	}
-}
-
-void task_return_hook(void* args)
-{
-	while(1){
-		__WFI();											/* Esperar interrupciones mientras tanto */
-	}
 }
 
 void* idle(void* args){

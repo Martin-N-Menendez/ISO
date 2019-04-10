@@ -11,7 +11,6 @@
 #define TRUE 1
 #endif
 
-
 extern task_struct task_list[N_TASK];
 extern uint32_t current_task;
 extern uint32_t task_list_idx;

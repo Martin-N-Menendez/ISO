@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "os.h"
+#include "task.h"
 #include "semaphore.h"
 /*==================[macros and definitions]=================================*/
 
@@ -138,15 +139,15 @@ int main(void){
 	os_init();
 
 	#ifdef EJ0
-	task_create(stack1,STACK_SIZE,task1,(void *)0x11223344);
-	task_create(stack2,STACK_SIZE,task2,(void *)0x55667788);
-	task_create(stack3,STACK_SIZE,task3,(void *)0x22446688);
+	task_create(stack1,STACK_SIZE,task1,1,(void *)0x11223344);
+	task_create(stack2,STACK_SIZE,task2,1,(void *)0x55667788);
+	task_create(stack3,STACK_SIZE,task3,1,(void *)0x22446688);
 	#endif
 
 	#ifdef EJ1
 	semaphore_create(&xSem);
-	task_create(stack1,STACK_SIZE,button_task,(void *)0x11223344);
-	task_create(stack2,STACK_SIZE,led_task,(void *)0x55667788);
+	task_create(stack1,STACK_SIZE,button_task,1,(void *)0x11223344);
+	task_create(stack2,STACK_SIZE,led_task,1,(void *)0x55667788);
 	#endif
 
 
