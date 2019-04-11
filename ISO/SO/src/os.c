@@ -245,7 +245,7 @@ uint32_t get_tick_count(void){
 
 
 /*==================[external functions definition]==========================*/
-
+/*
 void gpio_obtain_pin_config( gpioMap_t pin, int8_t* pin_name_port,int8_t* pin_name_pin, int8_t* func, int8_t* gpio_port,int8_t* gpio_pin){
 
 	*pin_name_port = gpio_pins_config[pin].pin_name.port;
@@ -276,10 +276,10 @@ bool gpioRead( gpioMap_t pin ){
 	return ret_val;
 }
 
-void led_set( uint8_t LEDNumber, bool On ){
+void led_set( gpioMap_t LEDNumber, bool On ){
 
 	Board_LED_Set(LEDNumber-LEDR,On);
 }
-
+*/
 
 /*==================[end of file]============================================*/

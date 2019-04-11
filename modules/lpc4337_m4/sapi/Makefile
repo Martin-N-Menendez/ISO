@@ -1,4 +1,5 @@
 # Copyright 2016, Pablo Ridolfi
+# Copyright 2016, Eric Pernia
 # All rights reserved.
 #
 # This file is part of Workspace.
@@ -29,21 +30,10 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# application name
-PROJECT_NAME := $(notdir $(PROJECT))
+sapi_PATH := modules/lpc4337_m4/sapi
 
-# Modules needed by the application
-PROJECT_MODULES := modules/$(TARGET)/base \
-                   modules/$(TARGET)/board \
-                   modules/$(TARGET)/sapi \
-                   modules/$(TARGET)/chip
+sapi_SRC_FILES += $(wildcard $(sapi_PATH)/src/*.c)
 
-# source files folder
-PROJECT_SRC_FOLDERS := $(PROJECT)/src
+sapi_SRC_FOLDERS += modules/lpc4337_m4/sapi/src
 
-# header files folder
-PROJECT_INC_FOLDERS := $(PROJECT)/inc
-
-# source files
-PROJECT_C_FILES := $(wildcard $(PROJECT)/src/*.c)
-PROJECT_ASM_FILES := $(wildcard $(PROJECT)/src/*.S)
+sapi_INC_FOLDERS += modules/lpc4337_m4/sapi/inc

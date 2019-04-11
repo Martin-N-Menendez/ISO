@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "os.h"
+#include "sapi.h"
 #include "task.h"
 #include "semaphore.h"
 /*==================[macros and definitions]=================================*/
@@ -12,9 +13,9 @@
 #define LED 2	//#define LED LEDR
 
 typedef enum {UP,DOWN} button_state;
-//typedef enum {TEC1,TEC2,TEC3,TEC4} button_idx;
-//typedef enum {LEDR,LEDG,LEDB,LED1,LED2,LED3} led_idx;
-typedef enum {OFF,ON} led_state;
+//typedef enum {TEC1 = 36 ,TEC2,TEC3,TEC4} button_idx;
+//typedef enum {LEDR = 40 ,LEDG,LEDB,LED1,LED2,LED3} led_idx;
+//typedef enum {OFF,ON} led_state;
 
 semaphore_t xSem;
 
@@ -30,7 +31,7 @@ static void * task2(void * param);
 static void * task3(void * param);
 #endif
 
-extern bool gpioRead( gpioMap_t pin );
+//extern bool gpioRead( gpioMap_t pin );
 
 /*==================[internal data definition]===============================*/
 
@@ -61,7 +62,7 @@ static void initHardware(void)
 void * task1(void* arg)
 {
 	while(1){
-		Board_LED_Toggle(LED1);
+		gpioToggle(LED1);
 		task_delay(200);
 	}
 	return NULL;
@@ -70,7 +71,7 @@ void * task1(void* arg)
 void * task2(void* arg)
 {
 	while(1){
-		Board_LED_Toggle(LED2);
+		gpioToggle(LED2);
 		task_delay(300);
 	}
 	return NULL;
@@ -79,7 +80,7 @@ void * task2(void* arg)
 void * task3(void* arg)
 {
 	while(1){
-		Board_LED_Toggle(LED3);
+		gpioToggle(LED3);
 		task_delay(400);
 	}
 	return NULL;
@@ -98,7 +99,7 @@ void* button_task(void* taskParam)
 	while(1){
 		task_delay(10);
 
-		if(!gpioRead(36) && state == UP){
+		if(!gpioRead(TEC1) && state == UP){
 			task_delay(20);
 			if(!gpioRead(36)){
 				state = DOWN;
@@ -106,7 +107,7 @@ void* button_task(void* taskParam)
 			}
 		}
 
-		if(gpioRead(36) && state == DOWN){
+		if(gpioRead(TEC1) && state == DOWN){
 			task_delay(20);
 			if(gpioRead(36)){
 				state = UP;
@@ -122,10 +123,10 @@ void* led_task(void* taskParam){
 	while(1){
 		semaphore_take(&xSem);
 		//Board_LED_Set(LED,ON);
-		led_set(LEDR,ON);
+		gpioToggle(LEDR);
 		task_delay(led_on_time_tick);
 		//Board_LED_Set(LED,OFF);
-		led_set(LEDR,OFF);
+		gpioToggle(LEDR);
 	}
 }
 
@@ -154,7 +155,7 @@ int main(void){
 
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
 		//Board_LED_Toggle(LEDB);
-		Board_LED_Set(LED+3,ON);
+		gpioToggle(LED3);
 		//task_delay(500);
 		//Board_LED_Set(LED,OFF);
 		__WFI();
