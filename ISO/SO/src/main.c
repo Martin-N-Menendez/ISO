@@ -9,13 +9,8 @@
 /*==================[macros and definitions]=================================*/
 
 #define EJ1
-#define DELAY_MS 1000
-#define LED 2	//#define LED LEDR
 
 typedef enum {UP,DOWN} button_state;
-//typedef enum {TEC1 = 36 ,TEC2,TEC3,TEC4} button_idx;
-//typedef enum {LEDR = 40 ,LEDG,LEDB,LED1,LED2,LED3} led_idx;
-//typedef enum {OFF,ON} led_state;
 
 semaphore_t xSem;
 
