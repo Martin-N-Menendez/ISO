@@ -1,6 +1,7 @@
 /*==================[inclusions]=============================================*/
 #include "board.h"
 #include "os.h"
+#include "sapi.h"
 #include <strings.h>
 /*==================[macros and definitions]=================================*/
 
@@ -11,12 +12,15 @@ uint32_t tick_count = 0;
 #define OFF 						0x0
 /*==================[internal data definition]===============================*/
 
-task_struct task_list[N_TASK];
+extern task_struct task_list[N_TASK];
+
+extern uint32_t stack_idle[STACK_SIZE/4];
+extern uint32_t stack1[STACK_SIZE/4];
+extern uint32_t stack2[STACK_SIZE/4];
+extern uint32_t stack3[STACK_SIZE/4];
+
 uint32_t current_task;
 uint32_t task_list_idx;
-
-uint32_t stack_idle[STACK_SIZE/4];
-
 
 /*==================[external data definition]===============================*/
 
@@ -25,14 +29,24 @@ uint32_t stack_idle[STACK_SIZE/4];
 void os_init(void){	/* Inicializar las tareas y crear tarea idle */
 	uint32_t i;
 
-	for( i=0 ; i < N_TASK ; i++){	/* Inicializar tareas*/
-		task_list[i].id = 0;
-		task_list[i].state = 0;
-		task_list[i].stack_pointer = 0;
+	task_list[0].id = 0;
+	task_list[0].state = READY;
+	task_list[0].stack_pointer = 0;
+	task_list[0].ticks = 0;
+	task_list[0].priority = PRIORITY_IDLE;
+
+	for( i=1 ; i<N_TASK ; i++)
+	{
+		task_list[i].id = i;
+		task_list[i].state = READY;
+		task_list[i].stack_pointer = 0x11111111*i;
+		task_list[i].ticks = 0;
+		task_list[i].priority = PRIORITY_LOW;
 	}
 	task_list_idx = 1;
-	current_task = 0;
-	task_create(stack_idle,STACK_SIZE,idle,1, (void*)0);	/* Crear tarea Idle */
+	current_task = 1;
+
+	task_create(stack_idle,STACK_SIZE,idle,task_list[0].priority, (void*)0);	// Crear tarea Idle
 }
 
 void schedule(void){	/* Programador */
@@ -49,7 +63,13 @@ void SysTick_Handler(void)
 	schedule();
 }
 
-
+void os_queue_init(void){
+	uint32_t i;
+	i = N_QUEUE;
+	for( i = 0 ; i < N_QUEUE ; i++ ){
+		//task_stack_init(&priority_queue[i]);
+	}
+}
 
 void init_stack(uint32_t stack[],
 				uint32_t stack_size_bytes,
@@ -124,9 +144,9 @@ uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de
 			default: break;
 			}
 			break;
-		case SUSPENDED:										/* Estado SUSPENDED */
+		//case SUSPENDED:										/* Estado SUSPENDED */
 			/* FALTA */
-			break;
+		//	break;
 		default: break;
 		}
 	}

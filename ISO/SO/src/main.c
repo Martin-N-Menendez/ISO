@@ -34,9 +34,9 @@ static void * task3(void * param);
 
 /*==================[external data definition]===============================*/
 
-uint32_t stack1[STACK_SIZE/4];
-uint32_t stack2[STACK_SIZE/4];
-uint32_t stack3[STACK_SIZE/4];
+extern uint32_t stack1[STACK_SIZE/4];
+extern uint32_t stack2[STACK_SIZE/4];
+extern uint32_t stack3[STACK_SIZE/4];
 
 uint32_t led_on_time_tick;
 uint32_t launched = 0;
