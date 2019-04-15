@@ -33,7 +33,7 @@
 
 PROJECT ?= ISO/SO
 
-#PROJECT ?= ISO/os-master
+#PROJECT ?= ISO/oficial
 
 TARGET ?= lpc4337_m4
 BOARD ?= edu_ciaa_nxp

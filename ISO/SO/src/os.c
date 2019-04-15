@@ -3,7 +3,7 @@
 #include "os.h"
 #include "sapi.h"
 #include "task.h"
-#include "task_queue.h"
+#include "semaphore.h"
 #include <strings.h>
 /*==================[macros and definitions]=================================*/
 
@@ -11,18 +11,16 @@
 uint32_t tick_count = 0;
 /*==================[internal functions declaration]=========================*/
 
-//#define OFF 						0x0
+uint32_t ready_list[PRIORITY_HIGH][N_TASK];
+uint32_t ready_count[PRIORITY_HIGH];
 /*==================[internal data definition]===============================*/
 
-os_state_t os_state = OS_INIT;
+//os_state_t os_state = OS_INIT;
 
 extern task_struct task_list[N_TASK];
-extern task_stack_t priority_queue[N_QUEUE];
+extern task_struct idle_task;
 
 extern uint32_t stack_idle[TASK_STACK_SIZE/4];
-extern uint32_t stack1[TASK_STACK_SIZE/4];
-extern uint32_t stack2[TASK_STACK_SIZE/4];
-extern uint32_t stack3[TASK_STACK_SIZE/4];
 
 uint32_t current_task;
 uint32_t task_list_idx;
@@ -32,18 +30,19 @@ uint32_t task_list_idx;
 /*==================[internal functions definition]==========================*/
 
 void os_init(void){	/* Inicializar las tareas y crear tarea idle */
-	//uint32_t i;
-
-	task_list[0].id = 0;
-	task_list[0].state = READY;
-	task_list[0].stack_pointer = stack_idle;
-	task_list[0].ticks = 0;
-	task_list[0].priority = PRIORITY_IDLE;
+	uint32_t i;
 
 	task_list_idx = 0;
-	current_task = 1;
+	current_task = 0;
 
-	task_create(stack_idle,TASK_STACK_SIZE,idle,task_list[0].priority, (void*)0);	// Crear tarea Idle
+	task_create(stack_idle,TASK_STACK_SIZE,idle,PRIORITY_IDLE, (void*)0);	// Crear tarea Idle
+
+	/* inicializo contextos iniciales de cada tarea */
+	for (i=0; i<N_TASK; i++) {
+		add_ready(task_list[i].priority, i);
+	}
+
+	//schedule();
 }
 
 void schedule(void){	/* Programador */
@@ -57,17 +56,8 @@ void schedule(void){	/* Programador */
 
 void SysTick_Handler(void)
 {
-	//add_tick_count();
-	//os_update_delay();
+	task_delay_update();
 	schedule();
-}
-
-void os_queue_init(void){
-	uint32_t i;
-	i = N_QUEUE;
-	for( i = 0 ; i < N_QUEUE ; i++ ){
-		task_stack_init(&priority_queue[i]);
-	}
 }
 
 void init_stack(uint32_t stack[],
@@ -88,8 +78,8 @@ void init_stack(uint32_t stack[],
 	void* stack_dir = &(stack[stack_size_bytes/4-17]);
 	*sp = (uint32_t)stack_dir;
 }
-
-uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de tareas */
+/*
+uint32_t get_next_context(uint32_t current_sp){
 
 	uint32_t next_sp;
 
@@ -145,28 +135,87 @@ uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de
 
 	return next_sp;
 }
-
+*/
+/*
 void os_update_delay(void)
 {
 	uint32_t i;
-		for (i = 0; i < task_list_idx ; i++) {
-			switch (task_list[i].state) {
-			case RUNNING:
-			case READY:
-				break;
-			case WAITING:
-				task_list[i].ticks -= 1;
-				if (task_list[i].ticks == 0) {
-					//Pongo la tarea en ready y la pongo en la cola de prioridad que le corresponde
-					task_list[i].state = READY;
-					task_stack_push(&priority_queue[task_list[i].priority], i);
+	semaphore_t* sem;
+
+		for (i = 1; i < task_list_idx ; i++)
+		{
+			switch (task_list[i].state)
+			{
+				case RUNNING:
+				case READY:
+					break;
+				case WAITING:
+				{
+					switch(task_list[i].wait_state)
+					{
+						case WAIT_TICKS:
+							task_list[i].ticks -= 1;
+							if (task_list[i].ticks == 0)
+							{
+								//Pongo la tarea en ready y la pongo en la cola de prioridad que le corresponde
+								task_list[i].state = READY;
+								task_stack_push(&priority_queue[task_list[i].priority], i);
+							}
+							break;
+						case WAIT_SEM:
+							sem = task_list[i].semaphore;
+							if(sem != NULL && sem->taken == FALSE)
+							{
+								task_list[i].state = READY;
+								task_stack_push(&priority_queue[task_list[i].priority], i);
+							}
+							break;
+						default:
+							os_error_hook(3);
+							break;
+					}
+					break;
 				}
-				break;
-			default:
-				os_error_hook(2);
-				break;
+				default:
+					os_error_hook(2);
+					break;
 			}
+		}
+}*/
+
+int32_t get_next_context(int32_t current_context)
+{
+	uint32_t returned_stack;
+
+	/* guardo contexto actual si es necesario */
+	if (current_task == IDLE_TASK) {
+		idle_task.stack_pointer = current_context;
+		idle_task.state = READY;
 	}
+	else if (current_task < N_TASK) {
+		task_list[current_task].stack_pointer = current_context; // ACA MATO TASK1!
+		if (task_list[current_task].state == RUNNING) {
+			task_list[current_task].state = READY;
+			add_ready(task_list[current_task].priority, current_task);
+		}
+	}
+	/* decido cuál va a ser el contexto siguiente a ejecutar */
+	task_priority_t p;
+	for (p = PRIORITY_HIGH; p > PRIORITY_IDLE; p--) {
+		if (ready_count[p-1] > 0) {
+			current_task = ready_list[p-1][0];
+			remove_ready(p, current_task);
+			task_list[current_task].state = RUNNING;
+			returned_stack = task_list[current_task].stack_pointer;
+			break;
+		}
+	}
+	if (p == PRIORITY_IDLE) {
+		current_task = IDLE_TASK;
+		idle_task.state = RUNNING;
+		returned_stack = idle_task.stack_pointer;
+	}
+	return returned_stack;
 }
 
 void os_error_hook(int i){
@@ -182,12 +231,53 @@ void* idle(void* args){
 }
 
 void add_tick_count(void){
-	os_update_delay();
 	tick_count++;											/* Incrementar cantidad de ticks */
 }
 
 uint32_t get_tick_count(void){
 	return tick_count;										/* Devolver cantidad de ticks */
+}
+
+
+
+
+
+void add_ready(task_priority_t prio, uint32_t id)
+{
+	ready_list[prio-1][ready_count[prio-1]] = id;
+	ready_count[prio-1]++;
+}
+
+void remove_ready(task_priority_t prio, uint32_t id)
+{
+	uint32_t i;
+	for (i=0; i<ready_count[prio-1]; i++) {
+		if (ready_list[prio-1][i] == id) {
+			break;
+		}
+	}
+	if (i < ready_count[prio-1]) {
+		uint32_t j;
+		for (j=i; j<(ready_count[prio-1]-1); j++) {
+			ready_list[prio-1][j] = ready_list[prio-1][j+1];
+		}
+		ready_count[prio-1]--;
+	}
+}
+
+void task_delay_update(void)
+{
+	uint32_t i;
+	for (i=0; i<N_TASK; i++) {
+		if ( (task_list[i].state == WAITING) &&
+				(task_list[i].ticks > 0)) {
+			task_list[i].ticks--;
+			if (task_list[i].ticks == 0) {
+				task_list[i].state = READY;
+				add_ready(task_list[i].priority, i);
+			}
+		}
+	}
 }
 
 

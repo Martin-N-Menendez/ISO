@@ -7,11 +7,13 @@
 #include <stdlib.h>
 #include "semaphore.h"
 
-#define N_TASK 				5
+#define N_TASK 				4
 #define N_QUEUE				3
 #define TASK_STACK_SIZE 	1024
 #define MIN_STACK_SIZE		32
 #define IDLE_STACK_SIZE		512
+
+#define IDLE_TASK			0
 
 extern uint32_t current_task;
 extern uint32_t task_list_idx;
@@ -26,10 +28,10 @@ typedef enum {
 } task_state;
 
 typedef enum {
-	PRIORITY_HIGH = 0,
-	PRIORITY_MEDIUM,
+	PRIORITY_IDLE = 0,
 	PRIORITY_LOW,
-	PRIORITY_IDLE
+	PRIORITY_MEDIUM,
+	PRIORITY_HIGH
 } task_priority_t;
 
 typedef enum {WAIT_TICKS = 1,

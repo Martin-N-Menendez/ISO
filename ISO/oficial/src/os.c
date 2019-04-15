@@ -190,6 +190,10 @@ int32_t getNextContext(int32_t current_context)
 
 void schedule(void)
 {
+	/* activo PendSV para llevar a cabo el cambio de contexto */
+	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+
+
 	/* Instruction Synchronization Barrier: aseguramos que se
 	 * ejecuten todas las instrucciones en  el pipeline
 	 */
@@ -198,9 +202,6 @@ void schedule(void)
 	 * completen todos los accesos a memoria
 	 */
 	__DSB();
-
-	/* activo PendSV para llevar a cabo el cambio de contexto */
-		SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
 }
 
 void SysTick_Handler(void)

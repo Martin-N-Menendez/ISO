@@ -8,7 +8,7 @@
 #include "semaphore.h"
 /*==================[macros and definitions]=================================*/
 
-#define EJ1
+#define EJ0
 
 typedef enum {UP,DOWN} button_state;
 
@@ -76,7 +76,7 @@ void * task3(void* arg)
 {
 	while(1){
 		gpioToggle(LED3);
-		task_delay(400);
+		task_delay(100);
 	}
 	return NULL;
 }
@@ -134,10 +134,7 @@ int main(void){
 
 	initHardware(); /* Inicializar la placa */
 
-	os_queue_init();
-
 	os_init();
-
 
 	#ifdef EJ0
 	task_create(stack1,TASK_STACK_SIZE,task1,PRIORITY_LOW,(void *)0x11223344);
@@ -151,9 +148,11 @@ int main(void){
 	task_create(stack2,TASK_STACK_SIZE,led_task,PRIORITY_LOW,(void *)0x55667788);
 	#endif
 
+
+
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
 		//Board_LED_Toggle(LEDB);
-		gpioToggle(LED3);
+		gpioToggle(LEDR);
 		//task_delay(500);
 		//Board_LED_Set(LED,OFF);
 		__WFI();
