@@ -8,8 +8,8 @@
 #include "semaphore.h"
 
 #define N_TASK 				5
-#define N_QUEUE				(sizeof(task_priority_t)-1)
-#define STACK_SIZE 			1024
+#define N_QUEUE				3
+#define TASK_STACK_SIZE 	1024
 #define MIN_STACK_SIZE		32
 #define IDLE_STACK_SIZE		512
 
@@ -21,7 +21,8 @@ typedef void *(*task_type)(void*);
 typedef enum {
 	RUNNING = 1,
 	READY,
-	WAITING
+	WAITING,
+	SUSPENDED
 } task_state;
 
 typedef enum {
@@ -30,15 +31,6 @@ typedef enum {
 	PRIORITY_LOW,
 	PRIORITY_IDLE
 } task_priority_t;
-
-typedef struct {
-	uint32_t	data[STACK_SIZE];
-	uint32_t	read_pointer;
-	uint32_t	write_pointer;
-	uint32_t	size;
-	bool_t		initialized;
-
-} task_stack_t;
 
 typedef enum {WAIT_TICKS = 1,
 			  WAIT_SEM
@@ -63,5 +55,6 @@ bool_t task_create(uint32_t stack[],
 
 void task_delay(uint32_t delay);
 void task_return_hook(void* args);
+bool_t task_search_next( uint32_t* task_list_idx );
 
 #endif

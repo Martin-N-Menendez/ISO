@@ -2,6 +2,8 @@
 #include "board.h"
 #include "os.h"
 #include "sapi.h"
+#include "task.h"
+#include "task_queue.h"
 #include <strings.h>
 /*==================[macros and definitions]=================================*/
 
@@ -9,15 +11,18 @@
 uint32_t tick_count = 0;
 /*==================[internal functions declaration]=========================*/
 
-#define OFF 						0x0
+//#define OFF 						0x0
 /*==================[internal data definition]===============================*/
 
-extern task_struct task_list[N_TASK];
+os_state_t os_state = OS_INIT;
 
-extern uint32_t stack_idle[STACK_SIZE/4];
-extern uint32_t stack1[STACK_SIZE/4];
-extern uint32_t stack2[STACK_SIZE/4];
-extern uint32_t stack3[STACK_SIZE/4];
+extern task_struct task_list[N_TASK];
+extern task_stack_t priority_queue[N_QUEUE];
+
+extern uint32_t stack_idle[TASK_STACK_SIZE/4];
+extern uint32_t stack1[TASK_STACK_SIZE/4];
+extern uint32_t stack2[TASK_STACK_SIZE/4];
+extern uint32_t stack3[TASK_STACK_SIZE/4];
 
 uint32_t current_task;
 uint32_t task_list_idx;
@@ -27,26 +32,18 @@ uint32_t task_list_idx;
 /*==================[internal functions definition]==========================*/
 
 void os_init(void){	/* Inicializar las tareas y crear tarea idle */
-	uint32_t i;
+	//uint32_t i;
 
 	task_list[0].id = 0;
 	task_list[0].state = READY;
-	task_list[0].stack_pointer = 0;
+	task_list[0].stack_pointer = stack_idle;
 	task_list[0].ticks = 0;
 	task_list[0].priority = PRIORITY_IDLE;
 
-	for( i=1 ; i<N_TASK ; i++)
-	{
-		task_list[i].id = i;
-		task_list[i].state = READY;
-		task_list[i].stack_pointer = 0x11111111*i;
-		task_list[i].ticks = 0;
-		task_list[i].priority = PRIORITY_LOW;
-	}
-	task_list_idx = 1;
+	task_list_idx = 0;
 	current_task = 1;
 
-	task_create(stack_idle,STACK_SIZE,idle,task_list[0].priority, (void*)0);	// Crear tarea Idle
+	task_create(stack_idle,TASK_STACK_SIZE,idle,task_list[0].priority, (void*)0);	// Crear tarea Idle
 }
 
 void schedule(void){	/* Programador */
@@ -60,6 +57,8 @@ void schedule(void){	/* Programador */
 
 void SysTick_Handler(void)
 {
+	//add_tick_count();
+	//os_update_delay();
 	schedule();
 }
 
@@ -67,7 +66,7 @@ void os_queue_init(void){
 	uint32_t i;
 	i = N_QUEUE;
 	for( i = 0 ; i < N_QUEUE ; i++ ){
-		//task_stack_init(&priority_queue[i]);
+		task_stack_init(&priority_queue[i]);
 	}
 }
 
@@ -91,74 +90,89 @@ void init_stack(uint32_t stack[],
 }
 
 uint32_t get_next_context(uint32_t current_sp){ /* Intercambiador de contexto de tareas */
+
 	uint32_t next_sp;
 
-	if ( current_task == 0 ){ 	/* Si la tarea actual es idle */
-		next_sp = task_list[1].stack_pointer;
-		current_task = 1;
-		return next_sp;
-	}
+	bool_t task_hit = FALSE;
+	uint32_t task_index;
 
-	/* Guardar stack de tarea actual */
-	task_list[current_task].stack_pointer = current_sp;
-
-	/* Obtener proximo SP y tarea */
-	uint32_t next_task,idx;
-	bool find_next_task = FALSE;
-
-	for ( idx = 0 ; idx < (task_list_idx -1) ; idx++ ){
-		uint32_t task_idx = ((current_task + idx) % (task_list_idx -1)) +1;
-		task_state state = task_list[task_idx].state;
-		semaphore_t* sem;
-		switch(state){
-		case READY:											/* Estado READY */
-			if( !find_next_task ){
-				task_list[task_idx].state = RUNNING;		/* Cambiar estado */
-				find_next_task = TRUE;						/* Buscar proximo */
-				next_task = task_idx;						/* Proxima tarea */
-			}
-			break;
-		case RUNNING:										/* Estado RUNNING */
-			task_list[task_idx].state = RUNNING;			/* Cambiar estado */
-			if( !find_next_task ){
-				find_next_task = TRUE;						/* Buscar proximo */
-				next_task = task_idx;						/* Proxima tarea */
-			}
-			break;
-		case WAITING:										/* Estado WAITING */
-			switch(task_list[task_idx].wait_state){
-			case WAIT_TICKS:
-				task_list[task_idx].ticks --;					/* Decremento los ticks */
-				if( task_list[task_idx].ticks == 0 ){			/* Se espero suficiente? */
-					task_list[task_idx].state = READY;			/* Cambiar estado */
-					/* PRIO */
-				}
-				break;
-			case WAIT_SEM:
-				sem = task_list[task_idx].semaphore;
-				if (sem != NULL && sem->taken == FALSE){
-					task_list[task_idx].state = READY;
-					/* PRIO */
-				}
-				break;
-			default: break;
-			}
-			break;
-		//case SUSPENDED:										/* Estado SUSPENDED */
-			/* FALTA */
-		//	break;
-		default: break;
+	switch (os_state) {
+	case OS_INIT:
+		task_hit = task_search_next(&task_index);
+		if (task_hit == TRUE) {
+			os_state = OS_TASK;
+			task_list[task_index].state = RUNNING;
+			next_sp = task_list[task_index].stack_pointer;
+			current_task = task_index;
+		} else {
+			os_state = OS_IDLE;
+			next_sp = task_list[0].stack_pointer;
 		}
+		break;
+	case OS_TASK:
+		task_list[current_task].stack_pointer = current_sp;
+		if (task_list[current_task].state == RUNNING) {
+			task_list[current_task].state = READY;
+		}
+		task_hit = task_search_next(&task_index);
+		if (task_hit == TRUE) {
+			os_state = OS_TASK;
+			task_list[task_index].state = RUNNING;
+			next_sp = task_list[task_index].stack_pointer;
+			current_task = task_index;
+		} else {
+			os_state = OS_IDLE;
+			next_sp = task_list[0].stack_pointer;
+		}
+		break;
+	case OS_IDLE:
+		task_list[0].stack_pointer = current_sp;
+		task_hit = task_search_next(&task_index);
+		if (task_hit == TRUE) {
+			os_state = OS_TASK;
+			task_list[task_index].state = RUNNING;
+			next_sp = task_list[task_index].stack_pointer;
+			current_task = task_index;
+		} else {
+			os_state = OS_IDLE;
+			next_sp = task_list[0].stack_pointer;
+		}
+		break;
+	default:
+		os_error_hook(1);
+		break;
 	}
-
-	if ( !find_next_task ){									/* Si no hay proximas tareas */
-		next_task = 1; 										/* Tarea 1 = Idle */
-	}
-
-	current_task = next_task;								/* Asignar tarea actual */
-	next_sp = task_list[next_task].stack_pointer;			/* Asignar SP */
 
 	return next_sp;
+}
+
+void os_update_delay(void)
+{
+	uint32_t i;
+		for (i = 0; i < task_list_idx ; i++) {
+			switch (task_list[i].state) {
+			case RUNNING:
+			case READY:
+				break;
+			case WAITING:
+				task_list[i].ticks -= 1;
+				if (task_list[i].ticks == 0) {
+					//Pongo la tarea en ready y la pongo en la cola de prioridad que le corresponde
+					task_list[i].state = READY;
+					task_stack_push(&priority_queue[task_list[i].priority], i);
+				}
+				break;
+			default:
+				os_error_hook(2);
+				break;
+			}
+	}
+}
+
+void os_error_hook(int i){
+	while(1){
+		__WFI();											/* Esperar interrupciones mientras tanto */
+	}
 }
 
 void* idle(void* args){
@@ -168,6 +182,7 @@ void* idle(void* args){
 }
 
 void add_tick_count(void){
+	os_update_delay();
 	tick_count++;											/* Incrementar cantidad de ticks */
 }
 
@@ -177,41 +192,5 @@ uint32_t get_tick_count(void){
 
 
 /*==================[external functions definition]==========================*/
-/*
-void gpio_obtain_pin_config( gpioMap_t pin, int8_t* pin_name_port,int8_t* pin_name_pin, int8_t* func, int8_t* gpio_port,int8_t* gpio_pin){
-
-	*pin_name_port = gpio_pins_config[pin].pin_name.port;
-	*pin_name_pin  = gpio_pins_config[pin].pin_name.pin;
-	*func          = gpio_pins_config[pin].func;
-	*gpio_port     = gpio_pins_config[pin].gpio.port;
-	*gpio_pin      = gpio_pins_config[pin].gpio.pin;
-
-}
-
-bool gpioRead( gpioMap_t pin ){
-
-	bool ret_val = OFF;
-
-	int8_t pin_name_port = 0;
-	int8_t pin_name_pin = 0;
-
-	int8_t func = 0;
-
-	int8_t gpio_port = 0;
-	int8_t gpio_pin = 0;
-
-
-	gpio_obtain_pin_config( pin, &pin_name_port, &pin_name_pin, &func, &gpio_port,&gpio_pin);
-
-	ret_val = (bool) Chip_GPIO_ReadPortBit( LPC_GPIO_PORT, gpio_port, gpio_pin);
-
-	return ret_val;
-}
-
-void led_set( gpioMap_t LEDNumber, bool On ){
-
-	Board_LED_Set(LEDNumber-LEDR,On);
-}
-*/
 
 /*==================[end of file]============================================*/

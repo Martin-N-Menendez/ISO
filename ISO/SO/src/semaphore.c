@@ -33,5 +33,4 @@ void semaphore_take(semaphore_t* sem){
 		schedule();
 	}
 	sem->taken = TRUE;
-
 }

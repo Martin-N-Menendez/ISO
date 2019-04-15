@@ -34,9 +34,9 @@ static void * task3(void * param);
 
 /*==================[external data definition]===============================*/
 
-extern uint32_t stack1[STACK_SIZE/4];
-extern uint32_t stack2[STACK_SIZE/4];
-extern uint32_t stack3[STACK_SIZE/4];
+extern uint32_t stack1[TASK_STACK_SIZE/4];
+extern uint32_t stack2[TASK_STACK_SIZE/4];
+extern uint32_t stack3[TASK_STACK_SIZE/4];
 
 uint32_t led_on_time_tick;
 uint32_t launched = 0;
@@ -49,8 +49,8 @@ static void initHardware(void)
 {
 	Board_Init();
 	SystemCoreClockUpdate();
-	SysTick_Config(SystemCoreClock / 1000);
 	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) -1);
+	SysTick_Config(SystemCoreClock / 1000);
 }
 
 #ifdef EJ0
@@ -132,21 +132,24 @@ int main(void){
 
 	/* ------------- INICIALIZACIONES ------------- */
 
+	initHardware(); /* Inicializar la placa */
+
+	os_queue_init();
+
 	os_init();
 
+
 	#ifdef EJ0
-	task_create(stack1,STACK_SIZE,task1,1,(void *)0x11223344);
-	task_create(stack2,STACK_SIZE,task2,1,(void *)0x55667788);
-	task_create(stack3,STACK_SIZE,task3,1,(void *)0x22446688);
+	task_create(stack1,TASK_STACK_SIZE,task1,PRIORITY_LOW,(void *)0x11223344);
+	task_create(stack2,TASK_STACK_SIZE,task2,PRIORITY_LOW,(void *)0x55667788);
+	task_create(stack3,TASK_STACK_SIZE,task3,PRIORITY_LOW,(void *)0x22446688);
 	#endif
 
 	#ifdef EJ1
 	semaphore_create(&xSem);
-	task_create(stack1,STACK_SIZE,button_task,1,(void *)0x11223344);
-	task_create(stack2,STACK_SIZE,led_task,1,(void *)0x55667788);
+	task_create(stack1,TASK_STACK_SIZE,button_task,PRIORITY_LOW,(void *)0x11223344);
+	task_create(stack2,TASK_STACK_SIZE,led_task,PRIORITY_LOW,(void *)0x55667788);
 	#endif
-
-	initHardware(); /* Inicializar la placa */
 
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
 		//Board_LED_Toggle(LEDB);
