@@ -58,7 +58,7 @@ void * task1(void* arg)
 {
 	while(1){
 		gpioToggle(LED1);
-		task_delay(200);
+		task_delay(50);
 	}
 	return NULL;
 }
@@ -67,7 +67,7 @@ void * task2(void* arg)
 {
 	while(1){
 		gpioToggle(LED2);
-		task_delay(300);
+		task_delay(100);
 	}
 	return NULL;
 }
@@ -76,7 +76,7 @@ void * task3(void* arg)
 {
 	while(1){
 		gpioToggle(LED3);
-		task_delay(100);
+		task_delay(250);
 	}
 	return NULL;
 }
@@ -134,8 +134,6 @@ int main(void){
 
 	initHardware(); /* Inicializar la placa */
 
-	os_init();
-
 	#ifdef EJ0
 	task_create(stack1,TASK_STACK_SIZE,task1,PRIORITY_LOW,(void *)0x11223344);
 	task_create(stack2,TASK_STACK_SIZE,task2,PRIORITY_LOW,(void *)0x55667788);
@@ -148,7 +146,7 @@ int main(void){
 	task_create(stack2,TASK_STACK_SIZE,led_task,PRIORITY_LOW,(void *)0x55667788);
 	#endif
 
-
+	os_init();
 
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
 		//Board_LED_Toggle(LEDB);

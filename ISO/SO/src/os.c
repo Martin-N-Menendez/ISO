@@ -32,17 +32,17 @@ uint32_t task_list_idx;
 void os_init(void){	/* Inicializar las tareas y crear tarea idle */
 	uint32_t i;
 
-	task_list_idx = 0;
-	current_task = 0;
-
 	task_create(stack_idle,TASK_STACK_SIZE,idle,PRIORITY_IDLE, (void*)0);	// Crear tarea Idle
 
 	/* inicializo contextos iniciales de cada tarea */
-	for (i=0; i<N_TASK; i++) {
+	for (i = 0; i < N_TASK; i++) {
 		add_ready(task_list[i].priority, i);
 	}
 
-	//schedule();
+	//task_list_idx = 0;
+	current_task = IDLE_TASK;
+
+	schedule();
 }
 
 void schedule(void){	/* Programador */
@@ -192,7 +192,7 @@ int32_t get_next_context(int32_t current_context)
 		idle_task.stack_pointer = current_context;
 		idle_task.state = READY;
 	}
-	else if (current_task < N_TASK) {
+	else if (current_task < IDLE_TASK) {
 		task_list[current_task].stack_pointer = current_context; // ACA MATO TASK1!
 		if (task_list[current_task].state == RUNNING) {
 			task_list[current_task].state = READY;
@@ -268,7 +268,7 @@ void remove_ready(task_priority_t prio, uint32_t id)
 void task_delay_update(void)
 {
 	uint32_t i;
-	for (i=0; i<N_TASK; i++) {
+	for (i = 0; i < N_TASK-1; i++) {
 		if ( (task_list[i].state == WAITING) &&
 				(task_list[i].ticks > 0)) {
 			task_list[i].ticks--;

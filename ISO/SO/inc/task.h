@@ -13,7 +13,7 @@
 #define MIN_STACK_SIZE		32
 #define IDLE_STACK_SIZE		512
 
-#define IDLE_TASK			0
+#define IDLE_TASK			N_TASK-1
 
 extern uint32_t current_task;
 extern uint32_t task_list_idx;
