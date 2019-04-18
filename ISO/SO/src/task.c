@@ -12,6 +12,7 @@ uint32_t stack_idle[TASK_STACK_SIZE/4];
 uint32_t stack1[TASK_STACK_SIZE/4];
 uint32_t stack2[TASK_STACK_SIZE/4];
 uint32_t stack3[TASK_STACK_SIZE/4];
+uint32_t stack4[TASK_STACK_SIZE/4];
 
 
 bool_t task_create(uint32_t stack[],

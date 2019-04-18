@@ -8,7 +8,7 @@
 /*==================[macros and definitions]=================================*/
 
 /*==================[internal data declaration]==============================*/
-uint32_t tick_count = 0;
+static uint32_t tick_count = 0;
 /*==================[internal functions declaration]=========================*/
 
 uint32_t ready_list[PRIORITY_HIGH][N_TASK];
@@ -32,15 +32,21 @@ uint32_t task_list_idx;
 void os_init(void){	/* Inicializar las tareas y crear tarea idle */
 	uint32_t i;
 
-	task_create(stack_idle,TASK_STACK_SIZE,idle,PRIORITY_IDLE, (void*)0);	// Crear tarea Idle
+	//task_create(stack_idle,TASK_STACK_SIZE,idle,PRIORITY_IDLE, (void*)0);	// Crear tarea Idle
+
+	idle_task.state = RUNNING;
+	idle_task.stack_pointer = stack_idle;
+	idle_task.priority = PRIORITY_IDLE;
+
+	init_stack(stack_idle,TASK_STACK_SIZE,&idle_task.stack_pointer,idle,(void *)0x99999999);
 
 	/* inicializo contextos iniciales de cada tarea */
 	for (i = 0; i < N_TASK; i++) {
 		add_ready(task_list[i].priority, i);
 	}
 
-	//task_list_idx = 0;
-	current_task = IDLE_TASK;
+	task_list_idx = 0;
+	current_task = -1;
 
 	schedule();
 }
@@ -56,6 +62,8 @@ void schedule(void){	/* Programador */
 
 void SysTick_Handler(void)
 {
+	//add_tick_count();
+	//tick_count++;
 	task_delay_update();
 	schedule();
 }
@@ -187,13 +195,18 @@ int32_t get_next_context(int32_t current_context)
 {
 	uint32_t returned_stack;
 
+	if(current_task == -1)
+	{
+		idle_task.state = READY;
+		returned_stack = current_context;
+	}
 	/* guardo contexto actual si es necesario */
 	if (current_task == IDLE_TASK) {
 		idle_task.stack_pointer = current_context;
 		idle_task.state = READY;
 	}
-	else if (current_task < IDLE_TASK) {
-		task_list[current_task].stack_pointer = current_context; // ACA MATO TASK1!
+	else if (current_task < N_TASK) {
+		task_list[current_task].stack_pointer = current_context;
 		if (task_list[current_task].state == RUNNING) {
 			task_list[current_task].state = READY;
 			add_ready(task_list[current_task].priority, current_task);
@@ -214,6 +227,7 @@ int32_t get_next_context(int32_t current_context)
 		current_task = IDLE_TASK;
 		idle_task.state = RUNNING;
 		returned_stack = idle_task.stack_pointer;
+		//returned_stack = task_list[current_task].stack_pointer;
 	}
 	return returned_stack;
 }
@@ -237,10 +251,6 @@ void add_tick_count(void){
 uint32_t get_tick_count(void){
 	return tick_count;										/* Devolver cantidad de ticks */
 }
-
-
-
-
 
 void add_ready(task_priority_t prio, uint32_t id)
 {
@@ -268,16 +278,44 @@ void remove_ready(task_priority_t prio, uint32_t id)
 void task_delay_update(void)
 {
 	uint32_t i;
-	for (i = 0; i < N_TASK-1; i++) {
-		if ( (task_list[i].state == WAITING) &&
-				(task_list[i].ticks > 0)) {
-			task_list[i].ticks--;
-			if (task_list[i].ticks == 0) {
-				task_list[i].state = READY;
-				add_ready(task_list[i].priority, i);
+	semaphore_t* sem;
+
+	tick_count++;
+	for (i = 0; i < N_TASK; i++) {
+		if(task_list[i].state == WAITING)
+		{
+			switch(task_list[i].wait_state)
+			{
+			case WAIT_TICKS:
+				if(task_list[i].ticks > 0)
+				{
+					task_list[i].ticks--;
+					if (task_list[i].ticks == 0)
+					{
+						task_list[i].state = READY;
+						add_ready(task_list[i].priority, i);
+					}
+				}
+				break;
+			case WAIT_SEM:
+				sem = task_list[i].semaphore;
+				if(sem != NULL && sem->taken == FALSE)
+				{
+					task_list[i].state = READY;
+					add_ready(task_list[i].priority, i);
+				}
+				break;
+
+			default:
+				os_error_hook(1);
+				break;
 			}
 		}
 	}
+
+
+
+
 }
 
 

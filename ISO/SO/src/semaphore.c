@@ -21,7 +21,7 @@ void semaphore_create(semaphore_t* arg){
 }
 
 void semaphore_give(semaphore_t* sem){
-	sem->taken = 0;
+	sem->taken = FALSE;
 }
 
 void semaphore_take(semaphore_t* sem){
