@@ -46,6 +46,7 @@ void task_delay(uint32_t delay)
 
 		if ((delay != 0) && (current_task != INVALID_TASK)) {
 			task_list[current_task].state = WAITING;
+			task_list[current_task].wait_state = WAIT_TICKS;
 			task_list[current_task].ticks = delay;
 			schedule();
 		}

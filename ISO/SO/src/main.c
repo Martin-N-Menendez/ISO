@@ -128,10 +128,8 @@ void* button_task(void* taskParam)
 void* led_task(void* taskParam){
 	while(1){
 		semaphore_take(&xSem);
-		//Board_LED_Set(LED,ON);
 		gpioToggle(LED1);
 		task_delay(led_on_time_tick);
-		//Board_LED_Set(LED,OFF);
 		gpioToggle(LED1);
 	}
 }
