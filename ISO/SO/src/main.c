@@ -6,13 +6,17 @@
 #include "sapi.h"
 #include "task.h"
 #include "semaphore.h"
+#include "buttons.h"
 /*==================[macros and definitions]=================================*/
 
-#define EJ1
+#define EJ1_bis
 
-typedef enum {UP,DOWN} button_state;
+//typedef enum {UP,DOWN} button_state;
 
 semaphore_t xSem;
+
+extern volatile Buttons_t button_list[N_BUTTON];
+extern gpioMap_t buttons_index[];
 
 /*==================[internal data declaration]==============================*/
 
@@ -27,11 +31,8 @@ static void * task3(void * param);
 static void * task4(void * param);
 #endif
 
-//extern bool gpioRead( gpioMap_t pin );
-
 /*==================[internal data definition]===============================*/
 
-//static uint32_t pausems_count;
 
 /*==================[external data definition]===============================*/
 
@@ -40,8 +41,8 @@ extern uint32_t stack2[TASK_STACK_SIZE/4];
 extern uint32_t stack3[TASK_STACK_SIZE/4];
 extern uint32_t stack4[TASK_STACK_SIZE/4];
 
-uint32_t led_on_time_tick;
-uint32_t launched = 0;
+uint32_t led_on_time[N_BUTTON] = {0,0,0,0};
+//gpioMap_t buttons[] = { TEC1,TEC2,TEC3,TEC4 };
 
 uint32_t current_task;
 
@@ -118,7 +119,7 @@ void* button_task(void* taskParam)
 			if(gpioRead(TEC1)){
 				state = UP;
 				on_time = get_tick_count() - on_time;
-				led_on_time_tick = on_time;
+				led_on_time[0] = on_time;
 				semaphore_give(&xSem);
 			}
 		}
@@ -129,8 +130,69 @@ void* led_task(void* taskParam){
 	while(1){
 		semaphore_take(&xSem);
 		gpioToggle(LED1);
-		task_delay(led_on_time_tick);
+		task_delay(led_on_time[0]);
 		gpioToggle(LED1);
+	}
+}
+
+#endif
+
+#ifdef EJ1_bis
+void* button_task(void* taskParam)
+{
+	uint32_t i;
+	gpioMap_t tec;
+
+	while(1){
+
+		for(i=0; i< N_BUTTON ; i++)
+		{
+			tec = buttons_index[i];
+
+			task_delay(10);
+			if (!gpioRead(tec) && button_list[i].state == UP)
+			{
+				task_delay(20);
+				if(!gpioRead(tec))
+				{
+					button_list[i].state = DOWN;
+					button_list[i].begin_time = get_tick_count();
+				}
+			}
+
+			if(gpioRead(tec) && button_list[i].state == DOWN)
+			{
+				task_delay(20);
+				if(gpioRead(tec))
+				{
+					button_list[i].state = UP;
+					button_list[i].end_time = get_tick_count();
+					led_on_time[i] = button_list[i].end_time-button_list[i].begin_time;
+					semaphore_give(&xSem);
+				}
+			}
+		}
+	}
+}
+
+void* led_task(void* taskParam){
+	uint32_t led = LEDB;
+	uint32_t i;
+
+	while(1){
+		semaphore_take(&xSem);
+
+		for(i = 0; i < N_BUTTON ; i++)
+		{
+			if(led_on_time[i] > 0)
+			{
+				gpioToggle(led+i);
+				task_delay(led_on_time[i]);
+				gpioToggle(led+i);
+				led_on_time[i] = 0;
+				break;
+			}
+		}
 	}
 }
 
@@ -151,6 +213,12 @@ int main(void){
 	#endif
 
 	#ifdef EJ1
+	semaphore_create(&xSem);
+	task_create(stack1,TASK_STACK_SIZE,button_task,PRIORITY_LOW,(void *)0x11223344);
+	task_create(stack2,TASK_STACK_SIZE,led_task,PRIORITY_LOW,(void *)0x55667788);
+	#endif
+
+	#ifdef EJ1_bis
 	semaphore_create(&xSem);
 	task_create(stack1,TASK_STACK_SIZE,button_task,PRIORITY_LOW,(void *)0x11223344);
 	task_create(stack2,TASK_STACK_SIZE,led_task,PRIORITY_LOW,(void *)0x55667788);

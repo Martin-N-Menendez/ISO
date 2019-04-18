@@ -43,7 +43,7 @@ typedef struct
 	int port;
 	int bit;
 }ciaaPin_t;
-
+/*
 typedef enum
 {
 	TEC1,
@@ -51,7 +51,8 @@ typedef enum
 	TEC3,
 	TEC4
 }edu_ciaa_nxp_tec_e;
-
+*/
+/*
 typedef enum
 {
 	LEDR,
@@ -61,7 +62,7 @@ typedef enum
 	LED2,
 	LED3
 }edu_ciaa_nxp_led_e;
-
+*/
 void ciaaIOInit(void);
 uint32_t ciaaWriteOutput(uint32_t outputNumber, uint32_t value);
 uint32_t ciaaReadInput(uint32_t inputNumber);
