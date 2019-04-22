@@ -7,11 +7,10 @@
 #include "task.h"
 #include "semaphore.h"
 #include "buttons.h"
+#include "uart.h"
 /*==================[macros and definitions]=================================*/
 
 #define EJ1_bis
-
-//typedef enum {UP,DOWN} button_state;
 
 semaphore_t xSem;
 
@@ -33,17 +32,18 @@ static void * task4(void * param);
 
 /*==================[internal data definition]===============================*/
 
-
 /*==================[external data definition]===============================*/
+
+DEBUG_PRINT_ENABLE
 
 extern uint32_t stack1[TASK_STACK_SIZE/4];
 extern uint32_t stack2[TASK_STACK_SIZE/4];
+#ifdef EJ0
 extern uint32_t stack3[TASK_STACK_SIZE/4];
 extern uint32_t stack4[TASK_STACK_SIZE/4];
+#endif
 
 uint32_t led_on_time[N_BUTTON] = {0,0,0,0};
-//gpioMap_t buttons[] = { TEC1,TEC2,TEC3,TEC4 };
-
 uint32_t current_task;
 
 /*==================[internal functions definition]==========================*/
@@ -52,7 +52,9 @@ static void initHardware(void)
 {
 	Board_Init();
 	SystemCoreClockUpdate();
-	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) -1);
+	//NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) -1);
+
+	NVIC_SetPriority(-2, (1 << 3) -1);
 	SysTick_Config(SystemCoreClock / 1000);
 }
 
@@ -179,6 +181,8 @@ void* led_task(void* taskParam){
 	uint32_t led = LEDB;
 	uint32_t i;
 
+	//char str[100];
+
 	while(1){
 		semaphore_take(&xSem);
 
@@ -189,6 +193,12 @@ void* led_task(void* taskParam){
 				gpioToggle(led+i);
 				task_delay(led_on_time[i]);
 				gpioToggle(led+i);
+
+				//sprintf(str, "Led: %d\r\n",(int)led_on_time[i]);
+				//UART_print_string(str);
+
+				UART_LED_status(i);
+
 				led_on_time[i] = 0;
 				break;
 			}
@@ -203,7 +213,13 @@ int main(void){
 
 	/* ------------- INICIALIZACIONES ------------- */
 
-	initHardware(); /* Inicializar la placa */
+	initHardware(); 						/* Inicializar la placa */
+
+	UART_config( UART_USB , BAUD_RATE );
+	//UART_USB_String( MSG_WELCOME );
+	//UART_print_string( MSG_WELCOME );
+
+	float_to_string(314.15);
 
 	#ifdef EJ0
 	task_create(stack1,TASK_STACK_SIZE,task1,PRIORITY_LOW,(void *)0x11223344);
@@ -227,10 +243,7 @@ int main(void){
 	os_init();
 
 	while(1) {  /* ------------- REPETIR POR SIEMPRE ------------- */
-		//Board_LED_Toggle(LEDB);
 		gpioToggle(LEDR);
-		//task_delay(500);
-		//Board_LED_Set(LED,OFF);
 		__WFI();
 	}
 

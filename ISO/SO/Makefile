@@ -32,6 +32,8 @@
 # application name
 PROJECT_NAME := $(notdir $(PROJECT))
 
+TARGET ?= lpc4337_m4
+
 # Modules needed by the application
 PROJECT_MODULES := modules/$(TARGET)/base \
                    modules/$(TARGET)/board \
