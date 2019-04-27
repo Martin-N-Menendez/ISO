@@ -31,7 +31,7 @@
 
 -include project.mk
 
-PROJECT ?= ISO/SO
+PROJECT ?= ISO/Final
 
 #PROJECT ?= ISO/oficial
 

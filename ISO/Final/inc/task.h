@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include "semaphore.h"
 
-#define N_TASK 				4
+#define N_TASK 				7
 #define N_QUEUE				3
 #define TASK_STACK_SIZE 	1024
 #define MIN_STACK_SIZE		32
