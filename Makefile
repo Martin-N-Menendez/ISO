@@ -55,6 +55,8 @@ PROJECT_OBJS := $(notdir $(PROJECT_OBJ_FILES))
 INCLUDES := $(addprefix -I,$(PROJECT_INC_FOLDERS)) \
             $(addprefix -I,$(foreach MOD,$(notdir $(PROJECT_MODULES)),$($(MOD)_INC_FOLDERS)))
 
+LFLAGS += -lc -lrdimon
+
 vpath %.o $(OBJ_PATH)
 vpath %.c $(PROJECT_SRC_FOLDERS) $(foreach MOD,$(notdir $(PROJECT_MODULES)),$($(MOD)_SRC_FOLDERS))
 vpath %.S $(PROJECT_SRC_FOLDERS) $(foreach MOD,$(notdir $(PROJECT_MODULES)),$($(MOD)_SRC_FOLDERS))

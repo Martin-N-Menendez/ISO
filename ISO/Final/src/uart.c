@@ -19,6 +19,28 @@ void UART_LED_status( int i )
 	UART_USB_String( " toggle\r\n" );
 }
 
+void int_to_string( int number )
+{
+	int n,div;
+	uint32_t i;
+	int integer_size;
+	char c[6];
+
+	integer_size = calculate_integer((float)number);
+
+	div = pot(integer_size);
+
+	for ( i = 0 ; i < (integer_size) ; i ++)
+	{
+		n = number / div;
+		c[i] = n + '0';
+		number -= n*div;
+		div /= 10;
+	}
+	c[i] = '\0';
+	UART_USB_String( c );
+}
+
 void float_to_string( float f )
 {
 	int n,div;

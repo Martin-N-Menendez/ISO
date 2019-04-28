@@ -2,6 +2,7 @@
 #include "board.h"
 #include <stdlib.h>
 #include <strings.h>
+#include <stdio.h>
 #include "os.h"
 #include "sapi.h"
 #include "task.h"
@@ -13,13 +14,19 @@
 
 #define TASK_FREQ 10
 
+#define ENCENDIDO		"\r\n\t On:"
+#define ASCENDENTE		"\r\n\t Asc:"
+#define DESCENDENTE		"\r\n\t Des:"
+#define SALTO			"\r\n"
+
 TickType_t TiempoEncendido[2] = {0,0};
 semaphore_t S_1,S_2; // Semaforos para leds
 semaphore_t M_01,M_10; // Semaforos para mensajes
 semaphore_t Msg,Led;
-bool_t Publicado_01 = FALSE;
-bool_t Publicado_10 = FALSE;
+bool_t Publicado = FALSE;
+//bool_t Publicado_10 = FALSE;
 TickType_t TiempoNoSolapado = 0;
+TickType_t t1=0,t2=0;
 
 gpioMap_t Botonera[] = { TEC1,TEC2 };
 
@@ -40,7 +47,7 @@ void* Maquina_de_Estados( void* arg );
 //void* Mensaje_10( void* arg );
 
 void* Mensaje( void* arg );
-void* Led_titilar( void* arg );
+void* LED_titilar( void* arg );
 void* FSM_color( void* arg );
 
 TickType_t Tick_Absoluto(TickType_t valor);
@@ -63,7 +70,7 @@ DEBUG_PRINT_ENABLE
 extern uint32_t stack1[TASK_STACK_SIZE/4];
 extern uint32_t stack2[TASK_STACK_SIZE/4];
 extern uint32_t stack3[TASK_STACK_SIZE/4];
-extern uint32_t stack4[TASK_STACK_SIZE/4];
+extern uint32_t stack4[10*TASK_STACK_SIZE/4];
 extern uint32_t stack5[TASK_STACK_SIZE/4];
 //extern uint32_t stack6[TASK_STACK_SIZE/4];
 
@@ -125,53 +132,46 @@ void* Maquina_de_Estados( void* arg )
 			if(button_list[BUTTON1].state == DOWN && button_list[BUTTON1].end_time > 0 && button_list[BUTTON2].end_time > 0) // 1-0
 			{
 				// Soltando las teclas
-				if(button_list[BUTTON1].end_time > button_list[BUTTON2].end_time && Publicado_10 == FALSE)
+				if(button_list[BUTTON1].end_time > button_list[BUTTON2].end_time && Publicado == FALSE)
 				{
 					// T2 < 0 --> Rojo o Azul
-					TiempoNoSolapado = button_list[BUTTON1].end_time - button_list[BUTTON2].end_time;
+					t2 = button_list[BUTTON1].end_time - button_list[BUTTON2].end_time;
 					Tecla_Reiniciar_Final(); // Reiniciar tiempos para evitar volver a usarlos
 
 					t2_state = 1;
-					semaphore_give(&Msg);	// Semaforo para publicar el mensaje <10>
-					//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
+					semaphore_give(&Msg);	// Semaforo para publicar el mensaje
 					task_delay(TASK_FREQ);
 				}
-				if(button_list[BUTTON1].end_time < button_list[BUTTON2].end_time && Publicado_01 == FALSE)
+				if(button_list[BUTTON1].end_time < button_list[BUTTON2].end_time && Publicado == FALSE)
 				{
 					// T2 > 0 --> Verde o Amarillo
-					TiempoNoSolapado = button_list[BUTTON2].end_time - button_list[BUTTON1].end_time;
+					t2 = button_list[BUTTON2].end_time - button_list[BUTTON1].end_time;
 					Tecla_Reiniciar_Final(); // Reiniciar tiempos para evitar volver a usarlos
 
 					t2_state = 0;
-					semaphore_give(&Msg);	// Semaforo para publicar el mensaje <01>
-					//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
+					semaphore_give(&Msg);	// Semaforo para publicar el mensaje
 					task_delay(TASK_FREQ);
 				}
-				//vTaskDelay( TASK_FREQ / portTICK_RATE_MS );
 			}
 			if(button_list[BUTTON1].state == UP && button_list[BUTTON1].begin_time > 0 && button_list[1].begin_time > 0 ) // 0-1
 			{
 				// Presionando las teclas
-				if(button_list[BUTTON2].begin_time > button_list[BUTTON1].begin_time && Publicado_01 == FALSE)
+				if(button_list[BUTTON2].begin_time > button_list[BUTTON1].begin_time && Publicado == FALSE)
 				{
 					// T1 > 0 --> Verde o Rojo
-					TiempoNoSolapado = button_list[BUTTON2].begin_time - button_list[BUTTON1].begin_time;
+					t1 = button_list[BUTTON2].begin_time - button_list[BUTTON1].begin_time;
 					Tecla_Reiniciar_Inicio(); // Reiniciar tiempos para evitar volver a usarlos
 
 					t1_state = 0;
-					//semaphore_give(&Msg);	// Semaforo para publicar el mensaje <01>
-					//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
 					task_delay(TASK_FREQ);
 				}
-				if(button_list[BUTTON2].begin_time < button_list[BUTTON1].begin_time && Publicado_10 == FALSE)
+				if(button_list[BUTTON2].begin_time < button_list[BUTTON1].begin_time && Publicado == FALSE)
 				{
 					// T1 < 0 --> Amarillo o Azul
-					TiempoNoSolapado = button_list[BUTTON1].begin_time - button_list[BUTTON2].begin_time;
+					t1 = button_list[BUTTON1].begin_time - button_list[BUTTON2].begin_time;
 					Tecla_Reiniciar_Inicio(); // Reiniciar tiempos para evitar volver a usarlos
 
 					t1_state = 1;
-					//semaphore_give(&Msg);	// Semaforo para publicar el mensaje <10>
-					//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
 					task_delay(TASK_FREQ);
 				}
 
@@ -181,8 +181,7 @@ void* Maquina_de_Estados( void* arg )
 		// Si los estados son distintos, no han sido publicados aun
 		if(button_list[BUTTON1].state != button_list[BUTTON2].state)
 		{
-			Publicado_01 = FALSE;
-			Publicado_10 = FALSE;
+			Publicado = FALSE;
 		}
 
 		// Si ambas teclas no son presionadas, reiniciar los tiempos de ambas teclas
@@ -192,7 +191,6 @@ void* Maquina_de_Estados( void* arg )
 			Tecla_Reiniciar_Final();
 		}
 
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
 		task_delay(TASK_FREQ);
 	}
 
@@ -205,97 +203,57 @@ void* Antirebote( void* arg )
 	// ---------- REPETIR POR SIEMPRE --------------------------
 	while(TRUE) {
 
-		for( i = 0 ; i< N_BUTTON ; i++ )
-		{
-			if (button_list[i].state == UP)
+			if (button_list[BUTTON1].state == DOWN && button_list[BUTTON2].state == DOWN)
 			{
-				TiempoEncendido[i] = button_list[i].end_time - button_list[i].begin_time;
+				TiempoEncendido[BUTTON1] = button_list[BUTTON1].end_time - button_list[BUTTON1].begin_time;
+				TiempoEncendido[BUTTON2] = button_list[BUTTON2].end_time - button_list[BUTTON2].begin_time;
 
-				//if (Tick_Absoluto(TiempoEncendido[i]) > ANTIREBOTE / portTICK_RATE_MS)
-				if (Tick_Absoluto(TiempoEncendido[i]) > ANTIREBOTE )
+				if (Tick_Absoluto(TiempoEncendido[BUTTON1]) > ANTIREBOTE && Tick_Absoluto(TiempoEncendido[BUTTON2]) > ANTIREBOTE)
 				{
-					(i==0)?(semaphore_give(&Led)):(semaphore_give(&Led)); // Libero el semaforo para el led
-					//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
+					semaphore_give(&Led);
 					task_delay(TASK_FREQ);
 				}
 				else // Si no pasan el antirebote, reiniciar tiempos
 				{
-					button_list[i].begin_time = 0;
-					button_list[i].end_time = 0;
+					Tecla_Reiniciar_Inicio();
+					Tecla_Reiniciar_Final();
+					t1 = 0;
+					t2 = 0;
 				}
 			}
-			//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
 			task_delay(TASK_FREQ);
-		}
 	}
 }
-
-/*
-void* LED1_titilar( void* arg )
-{
-	while(1){
-		//xSemaphoreTake(S_1,portMAX_DELAY);
-		semaphore_take(&S_1);
-		gpioWrite( LEDB , ON);
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
-		task_delay(TASK_FREQ);
-		gpioWrite( LEDB , OFF);
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
-		task_delay(TASK_FREQ);
-	}
-}
-
-void* LED2_titilar( void* arg )
-{
-	while(TRUE){
-		//xSemaphoreTake(S_2,portMAX_DELAY);
-		semaphore_take(&S_2);
-		gpioWrite( LED1 , ON);
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
-		task_delay(TASK_FREQ);
-		gpioWrite( LED1 , OFF);
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
-		task_delay(TASK_FREQ);
-	}
-}
-
-void* Mensaje_10( void* arg )
-{
-	while(TRUE){
-		//xSemaphoreTake(M_10,portMAX_DELAY); // Tomo el semaforo para el mensaje
-		semaphore_take(&M_10); // Tomo el semaforo para el mensaje
-		//printf( "{1:0:%u} \r\n", TiempoNoSolapado / portTICK_RATE_MS); // Publico mensaje en formato pedido, con ms
-		//printf( "{1:0:%u} \r\n", (unsigned int) TiempoNoSolapado ); // Publico mensaje en formato pedido, con ms
-		debugPrintlnString( "10" );
-		Publicado_10 = TRUE; // Flag de que ya fue publicado
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
-		task_delay(TASK_FREQ);
-	}
-}
-
-void* Mensaje_01( void* arg )
-{
-	while(TRUE){
-		//xSemaphoreTake(M_01,portMAX_DELAY); // Tomo el semaforo para el mensaje
-		semaphore_take(&M_01); // Tomo el semaforo para el mensaje
-		//printf( "{0:1:%u} \r\n", TiempoNoSolapado / portTICK_RATE_MS); // Publico mensaje en formato pedido, con ms
-		//printf( "{0:1:%u} \r\n", (unsigned int) TiempoNoSolapado ); // Publico mensaje en formato pedido, con ms
-		debugPrintlnString( "01" );
-		Publicado_01 = TRUE; // Flag de que ya fue publicado
-		//vTaskDelay(	TASK_FREQ / portTICK_RATE_MS );
-		task_delay(TASK_FREQ);
-	}
-}
-*/
 
 void* LED_titilar( void* arg )
 {
 	while(TRUE){
-		semaphore_take(&S_2);
-		gpioWrite( LED1 , ON);
-		task_delay(TASK_FREQ);
-		gpioWrite( LED1 , OFF);
-		task_delay(TASK_FREQ);
+		semaphore_take(&Led);
+		switch(color_state)
+		{
+			case VERDE:
+				gpioWrite( LEDG , ON);
+				task_delay(t1+t2);
+				gpioWrite( LEDG , OFF);
+				break;
+			case AMARILLO:
+				gpioWrite( LED1 , ON);
+				task_delay(t1+t2);
+				gpioWrite( LED1 , OFF);
+				break;
+			case ROJO:
+				gpioWrite( LEDR , ON);
+				task_delay(t1+t2);
+				gpioWrite( LEDR , OFF);
+				break;
+			case AZUL:
+				gpioWrite( LEDB , ON);
+				task_delay(t1+t2);
+				gpioWrite( LEDB , OFF);
+				break;
+			default: break;
+		}
+
 	}
 }
 
@@ -303,26 +261,41 @@ void* Mensaje( void* arg )
 {
 	while(TRUE){
 		semaphore_take(&Msg); // Tomo el semaforo para el mensaje
-		//printf( "{1:0:%u} \r\n", TiempoNoSolapado / portTICK_RATE_MS); // Publico mensaje en formato pedido, con ms
-		//printf( "{1:0:%u} \r\n", (unsigned int) TiempoNoSolapado ); // Publico mensaje en formato pedido, con ms
+
+		char t1_s[7];
+		char t2_s[7];
+		char t_s[7];
+
+		itoa(t1,	t1_s,	10);
+		itoa(t2,	t2_s,	10);
+		itoa(t1+t2,	t_s,	10);
+
 		switch(color_state)
 		{
-		case VERDE:
-			debugPrintlnString( "VERDE" );
-			break;
-		case AMARILLO:
-			debugPrintlnString( "AMARILLO" );
-			break;
-		case ROJO:
-			debugPrintlnString( "ROJO" );
-			break;
-		case AZUL:
-			debugPrintlnString( "AZUL" );
-			break;
-		default: break;
+			case VERDE:
+				debugPrintString( "Led verde:" );
+				break;
+			case AMARILLO:
+				debugPrintString( "Led amarillo:" );
+				break;
+			case ROJO:
+				debugPrintString( "Led rojo:" );
+				break;
+			case AZUL:
+				debugPrintString( "Led azul:" );
+				break;
+			default: break;
 		}
 
-		Publicado_10 = TRUE; // Flag de que ya fue publicado
+		debugPrintString( ENCENDIDO );
+		debugPrintString( t_s );
+		debugPrintString( ASCENDENTE );
+		debugPrintString( t1_s );
+		debugPrintString( DESCENDENTE );
+		debugPrintString( t2_s );
+		debugPrintString( SALTO );
+
+		Publicado = TRUE; // Flag de que ya fue publicado
 		task_delay(TASK_FREQ);
 	}
 }
@@ -387,15 +360,10 @@ int main(void)
 	task_create(stack1,TASK_STACK_SIZE,Antirebote,PRIORITY_LOW,(void *)0x11223344);
 	task_create(stack2,TASK_STACK_SIZE,LED_titilar,PRIORITY_LOW,(void *)0x11223344);
 	task_create(stack3,TASK_STACK_SIZE,Maquina_de_Estados,PRIORITY_LOW,(void *)0x11223344);
-	task_create(stack4,TASK_STACK_SIZE,Mensaje,PRIORITY_LOW,(void *)0x11223344); // estas tareas tienen ALGO mal
+	task_create(stack4,10*TASK_STACK_SIZE,Mensaje,PRIORITY_LOW,(void *)0x11223344); // estas tareas tienen ALGO mal
 	task_create(stack5,TASK_STACK_SIZE,FSM_color,PRIORITY_LOW,(void *)0x11223344);
 
 	//Inicializo un semáforo binario para sincronizar la tecla con el led
-
-	//semaphore_create(&S_1);
-	//semaphore_create(&S_2);
-	//semaphore_create(&M_01);
-	//semaphore_create(&M_10);
 
 	semaphore_create(&Msg);
 	semaphore_create(&Led);

@@ -19,5 +19,6 @@ void UART_USB_String( char* string );
 void float_to_string( float f );
 int calculate_integer(float f);
 int calculate_decimal(float f,int size);
+void int_to_string( int number );
 #endif
 
