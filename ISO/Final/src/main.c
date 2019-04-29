@@ -14,18 +14,18 @@
 
 #define TASK_FREQ 10
 
-#define ENCENDIDO		"\r\n\t On:"
-#define ASCENDENTE		"\r\n\t Asc:"
-#define DESCENDENTE		"\r\n\t Des:"
+#define MSG_VERDE		"\r\n Led verde:"
+#define MSG_ROJO		"\r\n Led rojo:"
+#define MSG_AZUL		"\r\n Led azul:"
+#define MSG_AMARILLO	"\r\n Led amarillo:"
+#define ENCENDIDO		"\r\n\t t_on:"
+#define ASCENDENTE		"\r\n\t t_asc:"
+#define DESCENDENTE		"\r\n\t t_desc:"
 #define SALTO			"\r\n"
 
-TickType_t TiempoEncendido[2] = {0,0};
-semaphore_t S_1,S_2; // Semaforos para leds
-semaphore_t M_01,M_10; // Semaforos para mensajes
+TickType_t TiempoEncendido[N_BUTTON] = {0,0};
 semaphore_t Msg,Led;
 bool_t Publicado = FALSE;
-//bool_t Publicado_10 = FALSE;
-TickType_t TiempoNoSolapado = 0;
 TickType_t t1=0,t2=0;
 
 gpioMap_t Botonera[] = { TEC1,TEC2 };
@@ -40,12 +40,7 @@ static void initHardware(void);
 
 // Prototipo de funcion de la tarea
 void* Antirebote( void* arg );
-//void* LED1_titilar( void* arg );
-//void* LED2_titilar( void* arg );
 void* Maquina_de_Estados( void* arg );
-//void* Mensaje_01( void* arg );
-//void* Mensaje_10( void* arg );
-
 void* Mensaje( void* arg );
 void* LED_titilar( void* arg );
 void* FSM_color( void* arg );
@@ -70,11 +65,10 @@ DEBUG_PRINT_ENABLE
 extern uint32_t stack1[TASK_STACK_SIZE/4];
 extern uint32_t stack2[TASK_STACK_SIZE/4];
 extern uint32_t stack3[TASK_STACK_SIZE/4];
-extern uint32_t stack4[10*TASK_STACK_SIZE/4];
+extern uint32_t stack4[12*TASK_STACK_SIZE/4];
 extern uint32_t stack5[TASK_STACK_SIZE/4];
 //extern uint32_t stack6[TASK_STACK_SIZE/4];
 
-uint32_t led_on_time[N_BUTTON] = {0,0};
 uint32_t current_task;
 
 /*==================[internal functions definition]==========================*/
@@ -233,25 +227,27 @@ void* LED_titilar( void* arg )
 		{
 			case VERDE:
 				gpioWrite( LEDG , ON);
-				task_delay(t1+t2);
+				task_delay( t1+t2 );
 				gpioWrite( LEDG , OFF);
 				break;
 			case AMARILLO:
 				gpioWrite( LED1 , ON);
-				task_delay(t1+t2);
+				task_delay( t1+t2 );
 				gpioWrite( LED1 , OFF);
 				break;
 			case ROJO:
 				gpioWrite( LEDR , ON);
-				task_delay(t1+t2);
+				task_delay( t1+t2 );
 				gpioWrite( LEDR , OFF);
 				break;
 			case AZUL:
 				gpioWrite( LEDB , ON);
-				task_delay(t1+t2);
+				task_delay( t1+t2 );
 				gpioWrite( LEDB , OFF);
 				break;
-			default: break;
+			default:
+				os_error_hook(1);
+				break;
 		}
 
 	}
@@ -273,27 +269,28 @@ void* Mensaje( void* arg )
 		switch(color_state)
 		{
 			case VERDE:
-				debugPrintString( "Led verde:" );
+				UART_USB_String( MSG_VERDE );
 				break;
 			case AMARILLO:
-				debugPrintString( "Led amarillo:" );
+				UART_USB_String( MSG_AMARILLO );
 				break;
 			case ROJO:
-				debugPrintString( "Led rojo:" );
+				UART_USB_String( MSG_ROJO );
 				break;
 			case AZUL:
-				debugPrintString( "Led azul:" );
+				UART_USB_String( MSG_AZUL );
 				break;
-			default: break;
+			default:
+				os_error_hook(2);
+				break;
 		}
 
-		debugPrintString( ENCENDIDO );
-		debugPrintString( t_s );
-		debugPrintString( ASCENDENTE );
-		debugPrintString( t1_s );
-		debugPrintString( DESCENDENTE );
-		debugPrintString( t2_s );
-		debugPrintString( SALTO );
+		UART_USB_String( ENCENDIDO );
+		UART_USB_String( t_s );
+		UART_USB_String( ASCENDENTE );
+		UART_USB_String( t1_s );
+		UART_USB_String( DESCENDENTE );
+		UART_USB_String( t2_s );
 
 		Publicado = TRUE; // Flag de que ya fue publicado
 		task_delay(TASK_FREQ);
@@ -304,9 +301,9 @@ static void initHardware(void)
 {
 	Board_Init();
 	SystemCoreClockUpdate();
-	//NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) -1);
+	NVIC_SetPriority(PendSV_IRQ, (1 << NVIC_PRIO_BITS) -1);
 
-	NVIC_SetPriority(-2, (1 << 3) -1);
+	//NVIC_SetPriority(-2, (1 << 3) -1);
 	SysTick_Config(SystemCoreClock / 1000);
 }
 
@@ -344,13 +341,7 @@ int main(void)
 
 	// UART for debug messages
 	debugPrintConfigUart( UART_USB, 115200 );
-	debugPrintlnString( "Prueba" );
-
-	//UART_config( UART_USB , BAUD_RATE );
-	//UART_USB_String( MSG_WELCOME );
-	//UART_print_string( MSG_WELCOME );
-
-	//float_to_string(314.15);
+	UART_USB_String( "[ISO]" );
 
 	// Led Watchdog
 	gpioWrite( LED3 , ON );
@@ -360,31 +351,13 @@ int main(void)
 	task_create(stack1,TASK_STACK_SIZE,Antirebote,PRIORITY_LOW,(void *)0x11223344);
 	task_create(stack2,TASK_STACK_SIZE,LED_titilar,PRIORITY_LOW,(void *)0x11223344);
 	task_create(stack3,TASK_STACK_SIZE,Maquina_de_Estados,PRIORITY_LOW,(void *)0x11223344);
-	task_create(stack4,10*TASK_STACK_SIZE,Mensaje,PRIORITY_LOW,(void *)0x11223344); // estas tareas tienen ALGO mal
+	task_create(stack4,12*TASK_STACK_SIZE,Mensaje,PRIORITY_LOW,(void *)0x11223344); // estas tareas tienen ALGO mal
 	task_create(stack5,TASK_STACK_SIZE,FSM_color,PRIORITY_LOW,(void *)0x11223344);
 
 	//Inicializo un semáforo binario para sincronizar la tecla con el led
 
 	semaphore_create(&Msg);
 	semaphore_create(&Led);
-
-	/*
-	if ( NULL == S_1 ){
-		while (1);
-	}
-
-	if ( NULL == S_2 ){
-		while (1);
-	}
-
-	if ( NULL == M_01 ){
-		while (1);
-	}
-
-	if ( NULL == M_10 ){
-		while (1);
-	}
-	*/
 
 	// Iniciar scheduler
 	os_init();

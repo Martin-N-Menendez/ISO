@@ -83,6 +83,14 @@ typedef enum {
 	QEI_IRQ                          =  52,/*!<  52  QEI                              */
 } LPC43XX_IRQ_Type;
 
+#define pLONG		long
+typedef unsigned pLONG Tick_Type;
+#define TICK_RATE_HZ			( ( Tick_Type ) 1000 )
+
+#define TICK_RATE_MS			( ( Tick_Type ) 1000 / TICK_RATE_HZ )
+
+#define NVIC_PRIO_BITS		3
+
 /* Scheduler utilities. */
 extern void vPortYield( void );
 #define portNVIC_INT_CTRL_REG		( * ( ( volatile unsigned long * ) 0xe000ed04 ) )
